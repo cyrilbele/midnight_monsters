@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Midnight Monsters</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="menu.css?v=30">
+<link rel="stylesheet" href="menu.css?v=32">
 <link rel="icon" href="sprites/ui/badge/badge_hearse.png">
 <style>
   html, body { margin: 0; height: 100%; background: #07030f; overflow: hidden; }
@@ -23,12 +23,15 @@
 <body>
 <div id="wrap"><canvas id="game" width="640" height="480" tabindex="-1" aria-label="Midnight Monsters"></canvas></div>
 <main id="split-race" aria-label="Multiplayer" data-i18n-aria="online.multiplayer" hidden></main>
+<div id="race-voice-dock"></div>
 <main id="home" aria-label="Midnight Monsters" hidden>
   <div class="title-stage">
     <canvas class="title-art" width="640" height="480" aria-hidden="true"></canvas>
     <nav id="title-actions" aria-label="Main menu" data-i18n-aria="menu.main">
-      <button type="button" id="play" class="title-play" aria-label="Play" data-i18n-aria="menu.play" aria-keyshortcuts="Enter"><canvas width="184" height="33" data-menu-art="titlePlay" aria-hidden="true"></canvas></button>
-      <button type="button" id="open-multi" class="title-link multi-link" aria-controls="multi-page" aria-label="Multiplayer" data-i18n-aria="online.multiplayer"><canvas width="130" height="18" aria-hidden="true"></canvas></button>
+      <div class="title-modes">
+        <button type="button" id="play" aria-label="Play" data-i18n-aria="menu.play" aria-keyshortcuts="Enter"><canvas width="184" height="33" data-menu-art="titlePlay" aria-hidden="true"></canvas></button>
+        <button type="button" id="open-multi" aria-controls="multi-page" aria-label="Multiplayer" data-i18n-aria="online.multiplayer"><canvas width="154" height="28" aria-hidden="true"></canvas></button>
+      </div>
       <button type="button" id="open-controls" class="title-link controls-link" aria-controls="controls-page" aria-label="Controls" data-i18n-aria="menu.controls"><canvas width="118" height="18" data-menu-art="titleKeyboard" aria-hidden="true"></canvas></button>
       <button type="button" id="open-options" class="title-link options-link" aria-controls="options-page" aria-label="Options" data-i18n-aria="menu.options"><canvas width="84" height="18" data-menu-art="titleGear" aria-hidden="true"></canvas></button>
     </nav>
@@ -64,7 +67,18 @@
         <label for="invite-link" data-i18n="online.invite">Invitation link</label>
         <div><input id="invite-link" type="url" readonly spellcheck="false"><button type="button" id="copy-invite" data-i18n="online.copy">Copy link</button></div>
       </div>
-      <footer class="lobby-actions"><button type="button" class="menu-back" data-i18n="menu.back">Back</button><button type="button" id="online-create" class="race-action" data-i18n="online.create">Create room</button></footer>
+      <div id="lobby-voice-dock">
+        <div id="room-voice" role="group" data-i18n-aria="voice.title" hidden>
+          <button id="voice-mic" type="button" aria-pressed="false" aria-keyshortcuts="V"></button>
+          <button id="voice-speakers" type="button" aria-pressed="false"></button>
+          <span id="voice-feedback" role="status"></span>
+        </div>
+      </div>
+      <footer class="lobby-actions">
+        <button type="button" class="menu-back" data-i18n="menu.back">Back</button>
+        <button type="button" id="online-create" class="race-action" data-i18n="online.create">Create room</button>
+        <button type="button" id="online-start" class="race-action" data-i18n="multi.start" hidden>Start race</button>
+      </footer>
     </div>
   </section>
   <section id="controls-page" class="menu-page" aria-labelledby="controls-heading" hidden>
@@ -75,6 +89,7 @@
         <div><dt data-i18n="help.throttle">Accelerate</dt><dd><kbd>↑</kbd> <span data-i18n="help.or">or</span> <kbd data-i18n="help.space">Space</kbd></dd></div>
         <div><dt data-i18n="help.brake">Brake</dt><dd><kbd>↓</kbd></dd></div>
         <div><dt data-i18n="help.turbo">Turbo</dt><dd><kbd>X</kbd></dd></div>
+        <div><dt data-i18n="voice.micControl">Online microphone</dt><dd><kbd>V</kbd> <kbd>Y / △</kbd></dd></div>
         <div><dt data-i18n="help.home">Return to title</dt><dd><kbd>Esc</kbd></dd></div>
       </dl>
       <p data-i18n="help.tips">Each press spends one of your two turbo charges. Pick up a green potion or make a close pass in traffic to regain one. You can also drive with WASD or ZQSD.</p>
@@ -150,21 +165,22 @@
 </form>
 <script src="js/util.js?v=28"></script>
 <script src="js/i18n.js?v=18"></script>
-<script src="js/locales/en.js?v=31"></script>
-<script src="js/locales/fr.js?v=31"></script>
-<script src="js/locales/ja.js?v=31"></script>
-<script src="js/locales/zh-CN.js?v=31"></script>
-<script src="js/locales/es.js?v=31"></script>
+<script src="js/locales/en.js?v=32"></script>
+<script src="js/locales/fr.js?v=32"></script>
+<script src="js/locales/ja.js?v=32"></script>
+<script src="js/locales/zh-CN.js?v=32"></script>
+<script src="js/locales/es.js?v=32"></script>
 <script src="js/sprites.js?v=26"></script>
 <script src="js/assets.js?v=20"></script>
 <script src="js/track.js?v=28"></script>
 <script src="js/render.js?v=28"></script>
 <script src="js/audio.js?v=29"></script>
 <script src="js/select.js?v=29"></script>
-<script src="js/menu.js?v=30"></script>
-<script src="js/input.js?v=30"></script>
+<script src="js/menu.js?v=32"></script>
+<script src="js/input.js?v=32"></script>
 <script src="js/local.js?v=30"></script>
-<script src="js/online.js?v=31"></script>
-<script src="js/game.js?v=30"></script>
+<script src="js/voice.js?v=32"></script>
+<script src="js/online.js?v=32"></script>
+<script src="js/game.js?v=32"></script>
 </body>
 </html>

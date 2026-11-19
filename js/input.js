@@ -62,7 +62,7 @@ const RaceInput = {
       drive: { axis, left: pressed(14), right: pressed(15), up: pedal(7, 0), down: pedal(6, 1) },
       actions: { left: pressed(14) || x < -0.58, right: pressed(15) || x > 0.58,
         up: pressed(12) || y < -0.58, down: pressed(13) || y > 0.58,
-        accept: pressed(0), cancel: pressed(1), turbo: pressed(2), back: pressed(8), start: pressed(9) },
+        accept: pressed(0), cancel: pressed(1), turbo: pressed(2), mic: pressed(3), back: pressed(8), start: pressed(9) },
     };
   },
 
@@ -111,6 +111,7 @@ const RaceInput = {
     if (G.state === 'online') {
       if (Local.done && (action === 'accept' || action === 'start')) Home.show(true);
       else if (action === 'turbo') Online.turbo();
+      else if (action === 'mic') Online.session?.voice.toggleMic();
       return;
     }
     if (G.state === 'select') {

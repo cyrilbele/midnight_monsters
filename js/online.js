@@ -2,7 +2,7 @@
 
 // Each guest sends its controls to the host. Everyone advances the same seeded field
 // from the host's ordered 60 Hz inputs, sent two steps at a time over WebRTC.
-const ROOM_VERSION = 1;
+const ROOM_VERSION = 2;
 const ROOM_ID = /^mm-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const BOOST_BIT = 1 << 16;
 const IDLE_INPUT = 100;
@@ -37,6 +37,22 @@ class RaceRoom {
     this.lastInput = Array(4).fill(0);
     this.dropped = new Set();
     this.frames = [];
+    this.microphones = new Set();
+    this.voice = new RoomVoice(this);
+  }
+
+  get roomId() { return this.isHost ? this.id : this.target; }
+
+  get canStart() {
+    return this.isHost && this.phase === 'waiting' && this.seats.size === this.count - 1 &&
+      this.rides.every(Boolean) && [...this.seats.keys()].every(c => c.open);
+  }
+
+  start() {
+    if (!this.canStart) return;
+    const seed = crypto.getRandomValues(new Uint32Array(1))[0];
+    this.broadcast({ t: 'start', seed, rides: this.rides });
+    this.begin(seed);
   }
 
   async connect() {
@@ -48,10 +64,12 @@ class RaceRoom {
       const peer = this.peer = new window.Peer('mm-' + crypto.randomUUID(), { secure: true });
       peer.on('error', err => {
         if (this.closed || this.phase === 'finished') return;
-        if (err.type === 'peer-unavailable' && !this.isHost) return this.fail('missing');
+        if (err.type === 'peer-unavailable' || err.type === 'webrtc') {
+          if (!this.isHost && this.phase === 'connecting') return this.fail(err.type === 'peer-unavailable' ? 'missing' : 'directFailed');
+          // After admission a failed media call must not take down the race connection.
+          return;
+        }
         if (this.phase === 'race' && !peer.destroyed && !['browser-incompatible','invalid-key'].includes(err.type)) return;
-        if (this.isHost && err.type === 'webrtc') return; // A single ICE failure belongs to its data channel.
-        if (!this.isHost && err.type === 'webrtc') return this.fail('directFailed');
         this.fail(err.type === 'browser-incompatible' ? 'unsupported' : 'network');
       });
       peer.on('disconnected', () => {
@@ -59,12 +77,14 @@ class RaceRoom {
         this.fail('network');
       });
       peer.on('connection', c => { if (this.isHost && !this.closed) this.listen(c); else c.close(); });
+      peer.on('call', call => this.voice.accept(call));
       peer.on('open', id => {
         if (this.closed) return;
         if (this.isHost) {
           this.id = id;
           this.phase = 'waiting';
           clearTimeout(this.deadline);
+          this.syncVoiceMembers();
           Online.render();
         } else {
           this.hostLink = peer.connect(this.target, { reliable: true, serialization: 'json' });
@@ -89,17 +109,20 @@ class RaceRoom {
     });
     const lost = () => {
       clearTimeout(handshake);
-      if (!this.links.delete(c) || this.closed || this.phase === 'finished') return;
+      if (!this.links.delete(c) || this.closed) return;
       if (!this.isHost) {
-        if (this.results) this.finish(this.results);
+        if (this.phase === 'finished') this.voice.close();
+        else if (this.results) { this.finish(this.results); this.voice.close(); }
         else this.fail(this.phase === 'connecting' ? 'directFailed' : 'hostLeft');
         return;
       }
       const seat = this.seats.get(c);
       if (seat === undefined) return;
       this.seats.delete(c);
+      this.microphones.delete(c.peer);
+      this.syncVoiceMembers();
       if (this.phase === 'race') this.dropped.add(seat);
-      else { this.rides[seat] = null; this.lobby(); }
+      else if (this.phase === 'waiting') { this.rides[seat] = null; this.lobby(); }
     };
     c.on('close', lost);
     c.on('error', () => { lost(); c.close(); });
@@ -111,7 +134,7 @@ class RaceRoom {
       if (m.t !== 'hello' || !c.open) return;
       seat = this.rides.indexOf(null);
       if (m.version !== ROOM_VERSION || this.phase !== 'waiting' || seat < 1) {
-        c.send({ t: 'refused', version: m.version !== ROOM_VERSION });
+        c.send({ t: 'refused', version: m.version !== ROOM_VERSION, started: this.phase !== 'waiting' });
         setTimeout(() => c.close(), 600);
         return;
       }
@@ -119,13 +142,11 @@ class RaceRoom {
       this.rides[seat] = validRide(m.ride) && !this.rides.includes(m.ride)
         ? m.ride : Object.keys(VEHICLES).find(id => !this.rides.includes(id));
       this.lobby();
-      if (this.rides.every(Boolean)) {
-        const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-        this.broadcast({ t: 'start', seed, rides: this.rides });
-        this.begin(seed);
-      }
+      this.syncVoiceMembers();
       return;
     }
+    if (m.t === 'mic' && typeof m.enabled === 'boolean') { this.setMic(c.peer, m.enabled); return; }
+    if (m.t === 'listen' && typeof m.enabled === 'boolean') { this.routeListener(c.peer, m.to, m.enabled); return; }
     if (m.t === 'ride' && this.phase === 'waiting') this.changeRide(seat, m.ride);
     if (this.phase !== 'race') return;
     if (m.t === 'input' && validInput(m.bits)) {
@@ -136,7 +157,15 @@ class RaceRoom {
   }
 
   fromHost(m) {
-    if (m.t === 'refused') return this.fail(m.version ? 'version' : 'full');
+    if (m.t === 'refused') return this.fail(m.version ? 'version' : m.started ? 'started' : 'full');
+    if (m.t === 'voiceMembers' && this.phase !== 'connecting') {
+      if (Array.isArray(m.members) && m.members.length <= this.count && m.members.every(row =>
+        Array.isArray(row) && row.length === 2 && typeof row[0] === 'string' && ROOM_ID.test(row[0]) && typeof row[1] === 'boolean')) {
+        this.voice.setMembers(m.members);
+      }
+      return;
+    }
+    if (m.t === 'listener' && typeof m.enabled === 'boolean') { this.voice.sendTo(m.id, m.enabled); return; }
     if (m.t === 'lobby' && ['connecting','waiting'].includes(this.phase)) {
       if (!Array.isArray(m.rides) || !validCount(m.rides.length) || !m.rides.every(id => id === null || validRide(id)) ||
           !Number.isInteger(m.seat) || m.seat < 1 || !m.rides[m.seat]) return this.fail('version');
@@ -179,11 +208,43 @@ class RaceRoom {
     for (const c of this.seats.keys()) if (c.open) c.send(m);
   }
 
+  syncVoiceMembers() {
+    const ids = [this.id, ...Array.from(this.seats.keys(), c => c.peer)];
+    const members = ids.map(id => [id, this.microphones.has(id)]);
+    this.broadcast({ t: 'voiceMembers', members });
+    this.voice.setMembers(members);
+  }
+
+  setMic(id, enabled) {
+    if (this.microphones.has(id) === enabled) return;
+    if (enabled) this.microphones.add(id); else this.microphones.delete(id);
+    this.syncVoiceMembers();
+  }
+
+  micChanged(enabled) {
+    if (this.isHost) this.setMic(this.id, enabled);
+    else if (this.hostLink.open) this.hostLink.send({ t: 'mic', enabled });
+  }
+
+  requestVoice(speaker, enabled = true) {
+    if (this.isHost) this.routeListener(this.id, speaker, enabled);
+    else if (this.hostLink.open) this.hostLink.send({ t: 'listen', to: speaker, enabled });
+  }
+
+  routeListener(listener, speaker, enabled) {
+    if (listener === speaker || !this.microphones.has(speaker)) return;
+    if (speaker === this.id) this.voice.sendTo(listener, enabled);
+    else for (const c of this.seats.keys()) {
+      if (c.peer === speaker && c.open) c.send({ t: 'listener', id: listener, enabled });
+    }
+  }
+
   begin(seed) {
     this.phase = 'race';
     Local.resetRace(this.rides, mulberry32(seed), this.seat);
     Home.page.hidden = true; Home.page = null; Home.root.hidden = true;
     G.state = 'online'; G.auto = false;
+    Online.updateVoice();
     RaceInput.clear();
     canvas.removeAttribute('aria-hidden'); canvas.focus({ preventScroll: true });
     this.lastFrame = this.lastHiddenTick = performance.now();
@@ -277,6 +338,7 @@ class RaceRoom {
     Local.root.hidden = false;
     canvas.setAttribute('aria-hidden', 'true');
     Local.addBoard(true, () => Home.show(true), 'menu.back');
+    Online.updateVoice();
   }
 
   fail(key) { if (!this.closed) Online.failed(this, key); }
@@ -284,6 +346,7 @@ class RaceRoom {
   close() {
     this.closed = true;
     clearTimeout(this.deadline); clearInterval(this.clock);
+    this.voice.close();
     this.peer?.destroy();
     this.links.clear(); this.seats.clear();
   }
@@ -297,6 +360,10 @@ const Online = {
     this.setup = el('online-setup'); this.status = el('online-status'); this.grid = el('online-grid');
     this.invite = el('online-invite'); this.link = el('invite-link'); this.copy = el('copy-invite');
     this.create = el('online-create'); this.vehicle = el('online-vehicle'); this.ride = el('online-ride');
+    this.startButton = el('online-start');
+    this.voiceBar = el('room-voice'); this.mic = el('voice-mic'); this.speakers = el('voice-speakers');
+    this.voiceFeedback = el('voice-feedback');
+    this.lobbyDock = el('lobby-voice-dock'); this.raceDock = el('race-voice-dock');
     this.countButtons = [...el('online-count').querySelectorAll('button')];
     const saved = Home.readOptions().onlineRide;
     this.preferred = validRide(saved) ? saved : G.vehicle;
@@ -315,6 +382,16 @@ const Online = {
       else if (s.hostLink.open) s.hostLink.send({ t: 'ride', ride: this.preferred });
     });
     this.create.addEventListener('click', () => this.connect(this.retryRoom));
+    this.startButton.addEventListener('click', () => this.session?.start());
+    this.mic.addEventListener('click', () => this.session?.voice.toggleMic());
+    this.speakers.addEventListener('click', () => {
+      const voice = this.session?.voice;
+      if (voice) voice.listen(!voice.listening || voice.playbackBlocked);
+    });
+    this.voiceBar.addEventListener('click', e => {
+      if (e.detail > 0 && this.session?.phase === 'race') canvas.focus({ preventScroll: true });
+    });
+    document.addEventListener('visibilitychange', () => this.session?.voice.visibility());
     this.copy.addEventListener('click', async () => {
       const link = this.link.value;
       try {
@@ -364,6 +441,7 @@ const Online = {
   leave() {
     const s = this.session;
     this.session = null; s?.close(); this.error = ''; this.retryRoom = null;
+    this.updateVoice();
     if (this.invitation() !== null) history.replaceState(null, '', location.pathname + location.search);
   },
 
@@ -373,9 +451,10 @@ const Online = {
     const setup = !s && !this.retryRoom;
     this.setup.hidden = !setup;
     this.vehicle.hidden = !setup && !waiting;
-    this.invite.hidden = !waiting || !s.isHost;
+    this.invite.hidden = !waiting || !s.isHost || s.rides.every(Boolean);
     document.getElementById('open-local').hidden = !!s;
     this.create.hidden = !!s;
+    this.startButton.hidden = !s?.canStart;
     this.create.textContent = tr(this.retryRoom ? 'online.retry' : 'online.create');
     for (const button of this.countButtons) button.setAttribute('aria-pressed', String(Number(button.textContent) === this.count));
     if (!this.vehicle.hidden) {
@@ -392,6 +471,7 @@ const Online = {
     else if (s && !waiting) message = tr('online.connecting');
     else if (waiting) {
       message = tr('online.waiting', { n: s.rides.filter(Boolean).length, total: s.count });
+      if (s.rides.every(Boolean)) message = tr(s.isHost ? 'online.gridFull' : 'online.waitHost');
       this.grid.replaceChildren(...s.rides.map((id, seat) => {
         const li = document.createElement('li');
         li.style.setProperty('--seat', SEAT_COLORS[seat]);
@@ -412,6 +492,26 @@ const Online = {
       }
     }
     setText(this.status, message);
+    this.updateVoice();
+  },
+
+  updateVoice() {
+    const s = this.session, voice = s?.voice;
+    const enabled = !!voice && !voice.closed && s.phase !== 'connecting';
+    const onTrack = enabled && s.phase !== 'waiting';
+    const dock = onTrack ? this.raceDock : this.lobbyDock;
+    if (this.voiceBar.parentElement !== dock) dock.append(this.voiceBar);
+    document.body.classList.toggle('online-results', s?.phase === 'finished');
+    this.voiceBar.hidden = !enabled;
+    if (!enabled) return;
+    this.mic.disabled = voice.pending;
+    this.mic.setAttribute('aria-pressed', String(!!voice.stream));
+    setText(this.mic, tr(voice.pending ? 'voice.pending' : voice.stream ? 'voice.micOn' : 'voice.micOff'));
+    this.mic.title = this.mic.textContent + ' (V · Y/△)';
+    const audible = voice.listening && !voice.playbackBlocked;
+    this.speakers.setAttribute('aria-pressed', String(audible));
+    setText(this.speakers, tr(audible ? 'voice.speakersOn' : 'voice.speakersOff'));
+    setText(this.voiceFeedback, voice.error ? tr(voice.error) : voice.playbackBlocked ? tr('voice.blocked') : '');
   },
 
   turbo() { this.session?.turbo(); },

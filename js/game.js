@@ -565,6 +565,14 @@ addEventListener('keydown', e => {
     return;
   }
   if (params.has('compare')) return;
+  if (G.state === 'online') {
+    if (e.code === 'KeyV') {
+      e.preventDefault();
+      if (!e.repeat) Online.session?.voice.toggleMic();
+      return;
+    }
+    if (Online.voiceBar.contains(e.target) && (e.code === 'Space' || e.code === 'Enter')) return;
+  }
   if (G.state === 'online' && Local.done) return;
   if (G.state === 'local') {
     if (e.code === 'KeyM' && !e.repeat) Home.toggleSound();
@@ -642,6 +650,7 @@ function touchDrive(e) {
   if (G.state !== 'race' && G.state !== 'online') return;
   let left = false, right = false;
   for (const touch of e.touches) {
+    if (touch.target !== canvas) continue;
     const [x, y] = canvasPoint(touch);
     if (overTurbo(x, y)) continue;
     if (x < W / 2) left = true; else right = true;
@@ -831,6 +840,7 @@ function fit() {
   canvas.style.height = Math.floor(canvas.height * k) + 'px';
 }
 addEventListener('resize', fit);
+new ResizeObserver(fit).observe(canvas.parentElement);
 fit();
 
 (async function boot() {

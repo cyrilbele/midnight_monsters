@@ -18,11 +18,13 @@ Au démarrage, le jeu reprend la langue choisie dans les options. Sans choix enr
 
 Dans le garage, gauche et droite choisissent le bolide, haut et bas le font pivoter et Entrée lance la course. Les seize pilotes occupent deux pages de huit. Les flèches autour du numéro de page et les touches Page précédente et Page suivante changent de page. En piste, diriger avec gauche et droite, accélérer avec haut ou Espace et freiner avec bas. `M` commande le son et `P` bascule entre le rendu 640 × 480 et le filtre 320 × 240. Échap ramène à l’accueil depuis le garage, le décompte, la course ou les résultats.
 
-L’accueil dessine son illustration à la résolution du jeu dans `Home.drawScene()` et partage le filtre `R.pixelate()` avec la course. En portrait, le cadrage conserve 640 pixels de large et recadre les côtés. Les boutons restent des contrôles HTML accessibles. Leur dessin dans `Home.drawActions()` utilise la résolution des compteurs pour garder les libellés lisibles.
+L’accueil dessine son illustration à la résolution du jeu dans `Home.drawScene()` et partage le filtre `R.pixelate()` avec la course. En portrait, le cadrage conserve 640 pixels de large et recadre les côtés. Les boutons restent des contrôles HTML accessibles. Leur dessin dans `Home.drawActions()` utilise la résolution des compteurs pour garder les libellés lisibles. La rangée `.title-modes` place Jouer et Multijoueur sur la chaussée au-dessus du corbillard.
 
 ### Jouer en ligne
 
-Depuis **Multijoueur → Course en ligne**, choisir 2, 3 ou 4 pilotes, créer le salon et copier le lien d’invitation. Le nombre inclut l’hôte. Chaque invité ouvre ce lien sur son appareil. Le décompte démarre dès que le dernier jeu a chargé ses dessins et rejoint le salon. Chaque appareil utilise les commandes du mode solo et affiche sa propre vue. Il faut garder l’onglet de l’hôte ouvert jusqu’aux résultats. [Salon sur GitHub Pages](https://cyrilbele.github.io/midnight_monsters/?online=1)
+Depuis **Multijoueur → Course en ligne**, choisir 2, 3 ou 4 pilotes, créer le salon et copier le lien d’invitation. Le nombre inclut l’hôte. Chaque invité ouvre ce lien sur son appareil. Quand toutes les places sont occupées, **Lancer la course** apparaît chez l’hôte. Le décompte démarre à son appui. Si un invité quitte la grille, sa place se libère et le bouton disparaît. Chaque appareil utilise les commandes du mode solo et affiche sa propre vue. Il faut garder l’onglet de l’hôte ouvert jusqu’aux résultats. [Salon sur GitHub Pages](https://cyrilbele.github.io/midnight_monsters/?online=1)
+
+Le vocal est facultatif dans le salon, en course et aux résultats. **Activer le micro** demande l’accès au micro et active l’écoute. **Écouter les voix** permet de participer en écoutant. La touche **V**, le bouton **Y / △** de la manette et le bouton du micro permettent de parler ou de se couper. Quitter le salon libère le micro.
 
 ### Jouer à plusieurs sur le même ordinateur
 
@@ -258,7 +260,7 @@ Head and crest visible above the low body in all views.
 | Le tracé, les reliefs, les décors et la grille adverse | `js/track.js` |
 | La conduite, les collisions, le chronomètre et les commandes | `js/game.js` |
 | Les touches partagées, les axes et les boutons des manettes | `js/input.js`, notamment `SEAT_KEYS` et `RaceInput.sample()` |
-| Le salon en ligne, les invitations et les échanges WebRTC | `js/online.js`, PeerJS dans `vendor/peerjs-1.5.5/` |
+| Le salon en ligne, les invitations et le vocal WebRTC | `js/online.js`, `js/voice.js`, PeerJS dans `vendor/peerjs-1.5.5/` |
 | Le garage multijoueur, la course partagée, les caméras et le classement | `js/local.js`, les gabarits dans `index.html` et les styles dans `menu.css` |
 | L’accueil, les panneaux Commandes et Options et leurs boutons | `index.html`, `menu.css`, `js/menu.js` et les PNG `sprites/ui/title_*.png` |
 | Les traductions du jeu et les fiches des pilotes | `js/locales/en.js`, `fr.js`, `ja.js`, `zh-CN.js` et `es.js` dans le même dossier |
@@ -281,6 +283,8 @@ En multijoueur, `Local.advanceRace()` avance le trafic et les adversaires une fo
 
 En ligne, PeerJS Cloud met les navigateurs en relation. Si les deux réseaux bloquent la connexion directe, WebRTC a besoin d’un relais TURN joignable. L’hôte attribue les places, transmet la graine de la grille et valide les commandes de chaque pas de course. Les invités rejouent ces pas dans l’ordre et affichent le classement final envoyé par l’hôte. La bibliothèque PeerJS se charge à l’ouverture d’une connexion. Lors d’un changement incompatible des messages ou des règles de simulation, incrémenter `ROOM_VERSION` dans `js/online.js` et actualiser les versions des scripts concernés dans `index.html`. [FAQ PeerJS](https://peerjs.com/client/faq)
 
+Pour le vocal, l’hôte transmet les identifiants des membres du salon et relaie les demandes d’écoute. `RoomVoice` ouvre un appel audio PeerJS direct de chaque micro actif vers chaque joueur qui souhaite l’entendre. Couper le micro arrête ses pistes. La sortie du salon ferme aussi les appels et les lecteurs audio.
+
 Le classement à trois et les résultats de fin de course partagent le gabarit `standings-panel` et les dessins `sprites/ui/standings_*.png`. Pour retoucher une vignette de bolide, modifier la vue 04 de sa planche, le profil avec le nez vers la droite. `Local.drawBoard()` associe cette vue au pilote et règle sa jauge selon la distance parcourue.
 
 Dans `js/game.js`, `G.placeTraffic()` fixe les voies et l’espacement. Les pilotes hors grille démarrent à des emplacements répartis dans la première moitié du parcours. Leur vitesse de croisière décale les rencontres jusqu’au cimetière. `G.bumpVehicle()` traite les touchettes avec le trafic et les concurrents. Le ralentissement dépend de la vitesse du véhicule rattrapé et de l’armure du joueur. La direction et l’accélérateur répondent dès la touchette. `G.countClosePasses()` accorde le bonus de turbo pour un dépassement rapproché du trafic.
@@ -302,7 +306,7 @@ Draw a single collectible sprite for Midnight Monsters, a 1990s pixel-art monste
 
 | À contrôler | Vue locale |
 | --- | --- |
-| Un salon en ligne | [Créer le salon](http://localhost:8642/?online=1) · choisir trois places, suivre l’invitation dans deux autres fenêtres puis vérifier le départ, le turbo et le classement. Pour jouer sur plusieurs appareils, partager le lien issu de GitHub Pages. |
+| Un salon en ligne | [Créer le salon](http://localhost:8642/?online=1) · choisir trois places, suivre l’invitation dans deux autres fenêtres puis vérifier le bouton de départ chez l’hôte, le vocal, le turbo et le classement. Pour jouer sur plusieurs appareils, partager le lien issu de GitHub Pages. |
 | Les dessins et les vues des pilotes, par pages de 30 | [Galerie](http://localhost:8642/?sheet=1) · changer la valeur de `sheet` pour avancer |
 | La composition des quatre zones sur le parcours jouable | [Comparaison](http://localhost:8642/?compare=1) · cliquer sur une scène pour l’agrandir |
 | La première potion de turbo, au milieu de la chaussée | [Approche de la fiole au motel](http://localhost:8642/?compare=1&shot=0&seg=229) |
