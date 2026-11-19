@@ -2,7 +2,7 @@
 
 // Each guest sends its controls to the host. Everyone advances the same seeded field
 // from the host's ordered 60 Hz inputs, sent two steps at a time over WebRTC.
-const ROOM_VERSION = 2;
+const ROOM_VERSION = 3;
 const ROOM_ID = /^mm-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const BOOST_BIT = 1 << 16;
 const IDLE_INPUT = 100;

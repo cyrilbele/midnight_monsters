@@ -194,7 +194,9 @@
 }
 .split-top .seat-tag { font: inherit; border-color: var(--seat); }
 .split-clock, .split-speed { margin-left: auto; color: #ffd660; }
-.split-turbo { font-size: .78em; color: #91ffe0; }
+.split-turbo { display: inline-flex; align-items: center; gap: .25em; font-size: .78em; color: #91ffe0; }
+.split-turbo img { height: max(16px, 1.4em); width: auto; image-rendering: pixelated; }
+.split-charge { color: #fff3cc; font-variant-numeric: tabular-nums; }
 .split-call, .split-notice {
   position: absolute; text-align: center; pointer-events: none; text-shadow: 2px 3px #180a22, -1px -1px #180a22;
 }

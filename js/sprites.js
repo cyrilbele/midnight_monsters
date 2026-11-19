@@ -140,7 +140,7 @@ const VEHICLES = {
     stats: { speed: 4, accel: 5, grip: 2, armor: 2 },
   },
   vampire: {
-    scale: 1.20, thumb: 4, display: { width: 59, length: 104, pivot: [160, 236] },
+    scale: 0.90, thumb: 4, display: { width: 44, length: 78, pivot: [160, 236] },
     stats: { speed: 4, accel: 3, grip: 5, armor: 2 },
   },
   mummy: {

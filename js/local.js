@@ -242,10 +242,12 @@ const Local = {
     pane.style.setProperty('--seat', SEAT_COLORS[i]);
     pane.setAttribute('aria-label', seatName(i) + ' · ' + I18n.copy.vehicles[driver.vehicle].label);
     pane.querySelector('.seat-tag').textContent = seatName(i);
+    for (const label of pane.querySelectorAll('[data-i18n]')) label.textContent = tr(label.dataset.i18n);
+    pane.querySelector('.split-turbo img').src = A.img.turbo_potion.src;
     const renderer = Object.create(R), surface = pane.querySelector('canvas');
     renderer.ctx = surface.getContext('2d', {alpha: false}); renderer.cameraYaws = new WeakMap();
     const hud = {};
-    for (const key of ['rank','clock','speed','turbo','notice','call']) hud[key] = pane.querySelector('.split-' + key);
+    for (const key of ['rank','clock','speed','charge','notice','call']) hud[key] = pane.querySelector('.split-' + key);
     this.views.push({ driver, pane, renderer, surface, hud });
     this.root.append(pane); this.observer.observe(pane);
   },
@@ -316,14 +318,14 @@ const Local = {
       renderer.frame(driver);
       if (driver.state === 'race') renderer.trialPanel(driver);
       setText(hud.rank, tr('hud.pos') + ' ' + driver.rank + '/8');
-      setText(hud.clock, tr('hud.time') + ' ' + Math.max(0, Math.ceil(driver.time)));
+      setText(hud.clock, tr('hud.time') + ' ' + driver.clockSeconds);
       setText(hud.speed, Math.round(driver.speed * KMH / MAX_SPEED) + ' ' + tr('hud.speedUnit'));
-      setText(hud.turbo, tr('hud.turbo') + ' ' + '◆'.repeat(driver.charge) + '◇'.repeat(TURBO_CAPACITY - driver.charge));
+      setText(hud.charge, `${driver.charge}/${TURBO_CAPACITY}`);
       const device = this.devices[driver.localCar.seat];
       let notice = '';
       if (device !== null && !RaceInput.pads.has(device)) notice = tr('multi.padLost');
-      else if (driver.offroadNoticeUntil > driver.elapsed) notice = tr('hud.offroad', {time: I18n.seconds(OFFROAD_PENALTY)});
-      else if (driver.checkpointNoticeUntil > driver.elapsed) notice = tr('race.checkpoint', {time: I18n.seconds(CHECKPOINT_BONUS[driver.zone])});
+      else if (driver.offroadNoticeUntil > driver.elapsed) notice = driver.offroadMessage;
+      else if (driver.checkpointNoticeUntil > driver.elapsed) notice = driver.checkpointMessage;
       else if (driver.passFlash > 0) notice = tr('hud.close');
       setText(hud.notice, notice);
       setText(hud.call, this.countdown > 0 ? String(Math.min(3, Math.ceil(this.countdown))) :

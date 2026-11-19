@@ -13,7 +13,7 @@ const KMH = 290;                // km/h shown at MAX_SPEED
 
 // Each painted label uses its own tight rectangle in the cabinet lettering strip.
 const RACE_LABELS = {
-  pos: [0, 59, 26], dawn: [60, 58, 23], time: [119, 74, 21],
+  pos: [0, 59, 26], time: [119, 74, 21],
   speedUnit: [194, 62, 31], field: [257, 38, 32],
 };
 const DIGIT_WIDTHS = [32, 25, 33, 33, 30, 38, 32, 32, 35, 30];
@@ -528,26 +528,23 @@ const R = {
     this.raceLabel('pos', 15, 7, 53, 24);
     this.digits(G.rank, 79, 4, 31);
     this.raceLabel('field', 104, 6, 36, 28);
-    this.raceLabel('dawn', 14, 37, 52, 19);
-    this.dawnBar(73, 41, 140, 12, G.dawn / G.dawnMax);
     this.raceLabel('time', W / 2 - 33, 4, 66, 18);
-    this.digits(Math.max(0, Math.ceil(G.time)), W / 2, 24, 39, 'center');
+    this.digits(G.clockSeconds, W / 2, 24, 39, 'center');
     this.logo(W - 7, 3, 1);
     this.digits(Math.round(G.speed / MAX_SPEED * KMH), W - 64, H - 49, 36, 'right');
     this.raceLabel('speedUnit', W - 65, H - 39, 56, 25);
-    if (G.state === 'race' || G.state === 'countdown') this.turboGauge(G);
+    if (G.state === 'race' || G.state === 'countdown' || G.state === 'shot') this.turboGauge(G);
     if (G.state === 'race') {
       const remaining = G.checkpointNoticeUntil - G.elapsed;
       if (remaining > 0) {
-        const bonus = tr('race.checkpoint', { time: I18n.seconds(CHECKPOINT_BONUS[G.zone]) });
         this.ctx.save();
         this.ctx.globalAlpha = Math.min(1, remaining / 0.25);
-        this.text(bonus, W / 2 + 59, 34, 20, '#8dffdc', { maxWidth: 109 });
+        this.text(G.checkpointMessage, W / 2 + 59, 34, 20, '#8dffdc', { maxWidth: 109 });
         this.ctx.restore();
       }
-      this.trialPanel(G);
+      this.trialPanel(G, 43, W / 2 - 64);
       if (G.elapsed < G.offroadNoticeUntil) {
-        this.text(tr('hud.offroad', { time: I18n.seconds(OFFROAD_PENALTY) }), W / 2 + 45, 53, 13, '#ffab87', { maxWidth: 133 });
+        this.text(G.offroadMessage, W / 2 + 45, 53, 13, '#ffab87', { maxWidth: 133 });
       }
     }
   },
@@ -558,28 +555,29 @@ const R = {
     ctx.fillStyle = '#160b21e8';
     ctx.fillRect(x, y, w, h);
     const color = active ? '#ffce4d' : G.charge ? '#68ffe3' : '#cab6d7';
-    this.text(tr('hud.turbo'), x + 6, y + 21, 17, color, { maxWidth: 51 });
-    this.text(active ? tr('hud.active') : 'X', x + 74, y + 19, 12, color, { align: 'center', maxWidth: 24, lw: 2 });
+    this.text(tr('hud.turbo'), x + 6, y + 21, 17, color, { maxWidth: 54 });
+    const iconWidth = 18, iconX = x + w - 55;
+    const icon = this.sourceAtSize(A.img.turbo_potion, iconWidth);
+    ctx.drawImage(icon, iconX, y + 2, iconWidth, Math.round(iconWidth * icon.height / icon.width));
     this.text(`${G.charge}/${TURBO_CAPACITY}`, x + w - 6, y + 21, 16, '#fff3cc', { align: 'right', maxWidth: 27 });
+    this.text(active ? tr('hud.active') : 'X', x + 7, y + 37, 12, color, { maxWidth: 28, lw: 2 });
+    const gap = 3, barWidth = Math.floor((w - 45 - gap * (TURBO_CAPACITY - 1)) / TURBO_CAPACITY);
     for (let i = 0; i < TURBO_CAPACITY; i++) {
-      const left = x + 7 + i * 55;
-      ctx.fillStyle = '#5e486f'; ctx.fillRect(left, y + 27, 52, 10);
+      const left = x + 38 + i * (barWidth + gap);
+      ctx.fillStyle = '#5e486f'; ctx.fillRect(left, y + 28, barWidth, 9);
       if (i < G.charge) {
-        ctx.fillStyle = '#32daba'; ctx.fillRect(left, y + 27, 52, 10);
-        ctx.fillStyle = '#aefff2'; ctx.fillRect(left, y + 27, 52, 2);
+        ctx.fillStyle = '#32daba'; ctx.fillRect(left, y + 28, barWidth, 9);
+        ctx.fillStyle = '#aefff2'; ctx.fillRect(left, y + 28, barWidth, 2);
       }
     }
     if (G.elapsed < G.potionNoticeUntil) {
-      const icon = this.sourceAtSize(A.img.turbo_potion, 15);
-      const height = Math.round(15 * icon.height / icon.width);
-      ctx.drawImage(icon, x + 3, y - 4 - height, 15, height);
-      this.text('+1', x + 22, y - 6, 17, '#c4ff60');
+      this.text('+1', iconX, y - 6, 17, '#c4ff60');
     } else if (G.passFlash > 0) {
       this.text(tr('hud.close'), x + 3, y - 7, 17, '#8dffdc');
     }
   },
 
-  trialPanel(G) {
+  trialPanel(G, y = 66, maxWidth = this.width - 28) {
     const notice = G.trialNotice, trial = Track.trials[G.trialIndex];
     let title, detail, color = '#8bfff1';
     if (notice && G.elapsed < notice.until) {
@@ -604,32 +602,15 @@ const R = {
         detail = tr(G.trialGate ? 'trial.sprintActive' : 'trial.sprintStart', { time: I18n.seconds(left, 1), distance });
       }
     }
-    const ctx = this.ctx, x = 14, y = 66;
+    const ctx = this.ctx, x = 14;
     ctx.font = this.font(15);
     const titleW = ctx.measureText(title).width;
     ctx.font = this.font(13);
-    const w = Math.ceil(Math.max(titleW, ctx.measureText(detail).width)) + 21;
+    const w = Math.min(maxWidth, Math.ceil(Math.max(titleW, ctx.measureText(detail).width)) + 21);
     ctx.fillStyle = '#160b21e8'; ctx.fillRect(x, y, w, 42);
     ctx.fillStyle = color; ctx.fillRect(x, y, 3, 42);
-    this.text(title, x + 9, y + 17, 15, color);
-    this.text(detail, x + 9, y + 34, 13, '#fff5fa');
-  },
-
-  dawnBar(x, y, w, h, pct) {
-    const ctx = this.ctx;
-    ctx.fillStyle = '#10091c'; ctx.fillRect(x - 4, y, w + 8, h);
-    ctx.fillRect(x - 2, y - 3, w + 4, h + 6);
-    ctx.fillStyle = '#eee2ff'; ctx.fillRect(x - 2, y, w + 4, h);
-    ctx.fillRect(x, y - 2, w, h + 4);
-    ctx.fillStyle = '#191021'; ctx.fillRect(x, y, w, h);
-    const colors = ['#ef123c','#fb3335','#ff532c','#ff7527','#ff9828','#ffb927','#ffd12c','#ffe23b','#fff051'];
-    const fraction = U.limit(pct, 0, 1);
-    for (let i = 0; i < colors.length; i++) {
-      const left = Math.round(i * w / colors.length), right = Math.round((i + 1) * w / colors.length);
-      ctx.fillStyle = '#615374'; ctx.fillRect(x + left + 1, y + 1, right - left - 2, h - 2);
-      const lit = Math.max(0, Math.min(right - left - 2, Math.round(w * fraction) - left - 1));
-      ctx.fillStyle = colors[i]; ctx.fillRect(x + left + 1, y + 1, lit, h - 2);
-    }
+    this.text(title, x + 9, y + 17, 15, color, { maxWidth: w - 21 });
+    this.text(detail, x + 9, y + 34, 13, '#fff5fa', { maxWidth: w - 21 });
   },
 
   logo(xr, y, k) {

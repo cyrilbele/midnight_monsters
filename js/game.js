@@ -29,12 +29,23 @@ function trafficName(id) {
 const G = {
   state: 'loading', audio: Sound,
   position: 0, playerX: 0, speed: 0, steer: 0,
-  time: START_TIME, dawn: DAWN_MAX, dawnMax: DAWN_MAX, dawnT: 0, elapsed: 0,
+  time: START_TIME, dawn: DAWN_MAX, dawnT: 0, elapsed: 0,
   rank: 8, zone: 0, cars: [], traffic: [], keys: {}, shake: 0, pixel: params.get('px') === '1',
   hillOffset: 0,
   msg: null, countdown: 0, results: null, auto: params.has('auto'),
   vehicle: Object.hasOwn(VEHICLES, params.get('car')) ? params.get('car') : 'hearse', yawS: 0,
   topSpeed: MAX_SPEED, accel: ACCEL, centrifugal: CENTRIFUGAL, armor: 3, playerW: 0.3,
+
+  get clockSeconds() {
+    return Math.max(0, Math.ceil(Math.min(this.time, this.dawn)));
+  },
+
+  // Checkpoints and penalties change the checkpoint deadline. Sunrise is fixed.
+  adjustCheckpointTime(seconds) {
+    const before = this.clockSeconds;
+    this.time += seconds;
+    return this.clockSeconds - before;
+  },
 
   // the 4 stats (1..5) of the chosen vehicle tune the physics around the
   // hearse, which is the reference (speed 3, accel 2, grip 4, armor 5)
@@ -62,6 +73,7 @@ const G = {
     this.frozen = false; this.finishedAt = 0; this.yawS = 0;
     this.bumpedCar = null;
     this.offCourse = false; this.offroadNoticeUntil = 0; this.checkpointNoticeUntil = 0;
+    this.offroadMessage = ''; this.checkpointMessage = '';
     this.charge = TURBO_CAPACITY; this.turboLeft = 0; this.turboStart = 0;
     this.collectedPotions = new Set(); this.potionNoticeUntil = 0;
     this.passedTraffic = new Set();
@@ -307,15 +319,17 @@ const G = {
     const zNow = Track.find(pz).zone;
     if (zNow > this.zone && zNow < 4) {
       this.zone = zNow;
-      this.time += CHECKPOINT_BONUS[zNow];
-      this.checkpointNoticeUntil = this.elapsed + 1.8;
+      const gain = this.adjustCheckpointTime(CHECKPOINT_BONUS[zNow]);
+      this.checkpointMessage = tr('race.checkpoint', { time: I18n.seconds(gain) });
+      this.checkpointNoticeUntil = gain ? this.elapsed + 1.8 : 0;
       this.audio?.checkpoint();
     }
     // Sample the excursion before a roadside impact can nudge the car back in.
     if (lateral <= OFFROAD_REARM) this.offCourse = false;
     if (offroad && !this.offCourse) {
       this.offCourse = true;
-      this.time -= OFFROAD_PENALTY;
+      const loss = -this.adjustCheckpointTime(-OFFROAD_PENALTY);
+      this.offroadMessage = loss ? tr('hud.offroad', { time: I18n.seconds(loss) }) : tr('trial.offroad');
       this.offroadNoticeUntil = this.elapsed + 1.7;
     }
     const closePasses = this.countClosePasses(startPos + PLAYER_Z, pz, startX);
@@ -337,7 +351,7 @@ const G = {
       this.finishedAt = this.elapsed - (this.localCar && stepDistance > 0 ? dt * U.limit((pz - Track.finishSeg * SEG) / stepDistance, 0, 1) : 0);
       this.audio?.finish();
       const order = this.cars.filter(c => c.finished).length;
-      this.results = { rank: order + 1, time: this.finishedAt, dawn: this.dawn };
+      this.results = { rank: order + 1, time: this.finishedAt };
       this.rank = order + 1;
       return;
     }
@@ -355,12 +369,13 @@ const G = {
   },
 
   finishTrial(trial, bonus, detail) {
+    let gain = 0;
     if (bonus) {
-      this.time += bonus;
+      gain = this.adjustCheckpointTime(bonus);
       this.trialsWon++;
     }
     this.audio?.trialResult(bonus > 0);
-    this.trialNotice = { title: tr('trial.' + trial.kind), text: detail + (bonus ? '   +' + I18n.seconds(bonus) : ''), won: bonus > 0, until: this.elapsed + 2.6 };
+    this.trialNotice = { title: tr('trial.' + trial.kind), text: detail + (gain ? '   +' + I18n.seconds(gain) : ''), won: bonus > 0, until: this.elapsed + 2.6 };
     this.trialIndex++;
     this.trialGate = 0; this.trialHits = 0;
   },
@@ -678,9 +693,8 @@ function drawScreens() {
     R.text(tr('result.finish'), W / 2, 150, 60, R.yellow(150, 60), { align: 'center' });
     R.text(tr('result.place', { rank: r.rank, total: G.cars.length + 1 }), W / 2, 210, 34, '#ffffff', { align: 'center' });
     R.text(tr('result.time', { time: I18n.seconds(r.time, 2) }), W / 2, 250, 26, R.yellow(250, 26), { align: 'center' });
-    R.text(tr('result.dawn', { time: I18n.seconds(Math.ceil(r.dawn)) }), W / 2, 284, 22, '#ffd0f6', { align: 'center' });
-    R.text(tr('result.summary', { won: G.trialsWon, total: Track.trials.length, passes: G.nearMisses }), W / 2, 315, 18, '#91ffdf', { align: 'center' });
-    if (Math.floor(performance.now() / 500) % 2) R.text(tr('result.continue'), W / 2, 350, 26, R.yellow(350, 26), { align: 'center' });
+    R.text(tr('result.summary', { won: G.trialsWon, total: Track.trials.length, passes: G.nearMisses }), W / 2, 284, 18, '#91ffdf', { align: 'center' });
+    if (Math.floor(performance.now() / 500) % 2) R.text(tr('result.continue'), W / 2, 325, 26, R.yellow(325, 26), { align: 'center' });
   }
   if (G.state === 'over' && G.results) {
     R.overlay(0.45);
@@ -693,10 +707,10 @@ function drawScreens() {
 // -------------------------------------------- reference "screenshot" mode ---
 // ?shot=0..3 freezes a scene composed like the reference art (debug / art review)
 const SHOTS = [
-  { cars: [['vampire', 7, -0.44, 2], ['werewolf', 10.5, 0.66, 1]], traffic: ['frankenstein', 17, 0.05], dawn: 0.97, playerX: 0.14, hill: 0.15 },
-  { cars: [['werewolf', 3.4, -0.42, 2], ['kappa', 22, 0.36, -1]], traffic: ['lagoon', 10, 0.56], dawn: 0.90, playerX: -0.04, hill: 0.11 },
-  { cars: [['mummy', 1, -0.38, 2], ['dokkaebi', 14, -0.02, 1], ['werewolf', 65, 0.12, 0]], traffic: ['freddy', 6, 0.60], dawn: 0.96, playerX: 0, hill: 0.895 },
-  { cars: [['baba_yaga', 10, -0.62, 1], ['iku_turso', 16, 0.50, -1], ['vampire', 36, 0.18, 0], ['werewolf', 60, -0.2, 1]], traffic: ['frankenstein', 7, 0.30], dawn: 0.08, playerX: 0.04, hill: 0.20 },
+  { cars: [['vampire', 7, -0.44, 2], ['werewolf', 10.5, 0.66, 1]], traffic: ['frankenstein', 17, 0.05], dawnT: 0.03, playerX: 0.14, hill: 0.15 },
+  { cars: [['werewolf', 3.4, -0.42, 2], ['kappa', 22, 0.36, -1]], traffic: ['lagoon', 10, 0.56], dawnT: 0.10, playerX: -0.04, hill: 0.11 },
+  { cars: [['mummy', 1, -0.38, 2], ['dokkaebi', 14, -0.02, 1], ['werewolf', 65, 0.12, 0]], traffic: ['freddy', 6, 0.60], dawnT: 0.04, playerX: 0, hill: 0.895 },
+  { cars: [['baba_yaga', 10, -0.62, 1], ['iku_turso', 16, 0.50, -1], ['vampire', 36, 0.18, 0], ['werewolf', 60, -0.2, 1]], traffic: ['frankenstein', 7, 0.30], dawnT: 0.92, playerX: 0.04, hill: 0.20 },
 ];
 function setupShot(i, segment = params.get('seg'), playerX = SHOTS[i].playerX, focusTraffic = '') {
   const s = SHOTS[i];
@@ -718,7 +732,7 @@ function setupShot(i, segment = params.get('seg'), playerX = SHOTS[i].playerX, f
   const [model, distance, lane] = s.traffic;
   const nearLane = U.limit(playerX + (playerX > 0.55 ? -0.48 : 0.48), -0.78, 0.78);
   G.addTraffic(focusTraffic || model, G.position + PLAYER_Z + (focusTraffic ? 3 : distance) * SEG, focusTraffic ? nearLane : lane);
-  G.rank = 3; G.time = 57.6; G.speed = MAX_SPEED * 186 / KMH; G.dawn = DAWN_MAX * s.dawn; G.dawnT = 1 - s.dawn;
+  G.rank = 3; G.time = 57.6; G.speed = MAX_SPEED * 186 / KMH; G.dawnT = s.dawnT;
   G.hillOffset = s.hill;
   G.frozen = true; G.state = 'shot';
 }
