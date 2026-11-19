@@ -625,7 +625,8 @@ addEventListener('keydown', e => {
     return;
   }
   if (SOLO_KEYS[e.code]) { RaceInput.held.add(e.code); G.keys = RaceInput.controls(0, false); e.preventDefault(); }
-  if (e.code === 'KeyX' && !e.repeat) {
+  const soloSpaceBoost = G.state === 'race' && e.code === 'Space';
+  if (!e.repeat && (e.code === 'KeyX' || soloSpaceBoost)) {
     e.preventDefault();
     if (G.state === 'online') Online.turbo(); else G.useTurbo();
   }

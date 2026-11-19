@@ -560,7 +560,8 @@ const R = {
     const icon = this.sourceAtSize(A.img.turbo_potion, iconWidth);
     ctx.drawImage(icon, iconX, y + 2, iconWidth, Math.round(iconWidth * icon.height / icon.width));
     this.text(`${G.charge}/${TURBO_CAPACITY}`, x + w - 6, y + 21, 16, '#fff3cc', { align: 'right', maxWidth: 27 });
-    this.text(active ? tr('hud.active') : 'X', x + 7, y + 37, 12, color, { maxWidth: 28, lw: 2 });
+    const shortcut = G.localCar ? 'X' : 'X / ␣';
+    this.text(active ? tr('hud.active') : shortcut, x + 7, y + 37, 12, color, { maxWidth: 28, lw: 2 });
     const gap = 3, barWidth = Math.floor((w - 45 - gap * (TURBO_CAPACITY - 1)) / TURBO_CAPACITY);
     for (let i = 0; i < TURBO_CAPACITY; i++) {
       const left = x + 38 + i * (barWidth + gap);
