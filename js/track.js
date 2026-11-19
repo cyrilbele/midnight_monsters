@@ -6,6 +6,7 @@ const FINISH_SWEEP = 7 * Math.PI / 8; // the last turntable frame before a full 
 const FINISH_TURN_DEPTH = 11 * SEG;
 const FINISH_TURN_RADIUS_X = .13;
 const WORLD_IDS = ZONES.map(zone => zone.id);
+const SURFACES_WITHOUT_SHOULDERS = new Set(['temple', 'bore', 'bridge']);
 const BODY_BAND = [[0, .80]];
 function validRoute(route) {
   return Array.isArray(route) && route.length === STAGE_COUNT &&
@@ -210,8 +211,9 @@ const Track = {
     const s = this.segments[n];
     const def = SPRITES[name];
     if (!s || !def) return;
-    const anchor = def.anchor != null ? (opts.flip ? 1 - def.anchor : def.anchor) : def.center ? 0.5 : offset < 0 ? 1 : 0;
-    const sprite = { name, offset, flip: !!opts.flip, w: def.w * (opts.scale || 1), anchor, hit: def.hit };
+    const flip = opts.flip ?? (def.facing === Math.sign(offset));
+    const anchor = def.anchor != null ? (flip ? 1 - def.anchor : def.anchor) : def.center ? 0.5 : offset < 0 ? 1 : 0;
+    const sprite = { name, offset, flip, w: def.w * (opts.scale || 1), anchor, hit: def.hit };
     if (opts.sign) { sprite.sign = opts.sign; sprite.start = opts.start; }
     s.sprites.push(sprite);
     return sprite;
@@ -247,16 +249,28 @@ const Track = {
         }
       }
     }
-    for (const [name, spacing, bank, spread] of world.scenery) {
-      for (let i = start + 24; i < end - 15; i += spacing + Math.floor(random() * spacing * .5)) {
-        const section = this.segments[i].surface;
-        if (section === 'temple' || section === 'bore' || section === 'bridge') continue;
+    for (const [name, spacing, bank, spread, first = 24] of world.scenery) {
+      for (let i = start + first; i < end - 15; i += spacing + Math.floor(random() * spacing * .5)) {
+        if (SURFACES_WITHOUT_SHOULDERS.has(this.segments[i].surface)) continue;
         const side = random() < .5 ? -1 : 1;
         if (world.sites.some(([at, , x]) => side * x > 0 && Math.abs(start + at - i) < 16)) continue;
         this.add(i, name, side * (bank + random() * spread), { scale: .82 + random() * .34 });
       }
     }
     for (const [at, name, x, scale] of world.sites) this.add(start + at, name, x, { scale });
+    if (world.shoulderProps?.length) {
+      // Dress the open gaps close to each kerb, leaving the larger roadside scenes visible.
+      for (const side of [-1, 1]) {
+        for (let i = start + 14 + Math.floor(random() * 12); i < end - 15; i += 14 + Math.floor(random() * 12)) {
+          if (SURFACES_WITHOUT_SHOULDERS.has(this.segments[i].surface)) continue;
+          const nearby = this.segments.slice(i - 5, i + 6).some(seg =>
+            seg.sprites.some(sp => side * sp.offset >= 1 && side * sp.offset < 1.75));
+          if (nearby) continue;
+          const name = world.shoulderProps[Math.floor(random() * world.shoulderProps.length)];
+          this.add(i, name, side * (1.07 + random() * .56), { scale: .82 + random() * .30, flip: random() < .5 });
+        }
+      }
+    }
     for (const [at, name, x, phase = 0] of world.events) {
       if (name === 'press_die') this.add(start + at, 'press_gantry', 0);
       const sp = this.add(start + at, name, x);

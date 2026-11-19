@@ -81,6 +81,16 @@ test('checkpoints, challenges, objects and the finish follow the chosen order', 
       assert.deepEqual(gates, Array.from(world.trial.gates, ([distance]) => distance));
       for (const [distance] of world.potions) assert.ok(segments[distance].sprites.some(s => s.name === 'turbo_potion'));
       for (const [distance, name] of world.events || []) assert.ok(segments[distance].hazards.some(h => h.name === name));
+      for (const name of world.shoulderProps || []) {
+        const banks = new Set();
+        for (const seg of segments) for (const sprite of seg.sprites.filter(sp => sp.name === name)) {
+          const left = sprite.offset - sprite.anchor * sprite.w / seg.halfWidth;
+          assert.ok(left >= 1 || left + sprite.w / seg.halfWidth <= -1);
+          assert.ok(!['temple', 'bore', 'bridge'].includes(seg.surface) && !seg.finishApron);
+          banks.add(Math.sign(sprite.offset));
+        }
+        assert.deepEqual([...banks].sort(), [-1, 1]);
+      }
       for (const s of segments) if (s.sprites.some(p => p.name === 'arch_finish')) finishes.push(s);
     });
     assert.equal(finishes.length, 1);

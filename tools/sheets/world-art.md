@@ -115,6 +115,51 @@ The forward-moving car goes from wrist at bottom to fingers at top.
 Make it instantly recognizable as a giant five-digit palm.
 ```
 
+## Vie des bas-côtés
+
+Chaque univers a une planche de six scènes et deux petits motifs au sol. Les planches ImageGen ont été découpées aux gouttières transparentes. Le jeu charge les 32 PNG individuels dans les dossiers [désert](../../sprites/roadside/desert), [station de ski](../../sprites/roadside/alpine), [ville](../../sprites/roadside/city) et [fonderie](../../sprites/roadside/foundry).
+
+<details>
+<summary>Consignes ImageGen des planches de bord de route</summary>
+
+Pour chacune des quatre planches, utiliser le texte commun suivi du paragraphe du biome.
+
+```text
+Use case: stylized-concept. A production atlas of six roadside sprite drawings for Midnight Monsters, the spooky humorous 16-bit arcade racer. Landscape 3:2 canvas made of exactly THREE COLUMNS by TWO ROWS of equally sized invisible square cells. The six subjects in the listed reading order stay completely inside their own cells and stand firmly on the bottom of their own drawing. Keep generous fully transparent gutters all the way between cells, with at least 9% clear margin inside every cell. Only the objects/characters, props grouped into one coherent silhouette per cell, no scenery, floor plane, ambient haze, drop shadow, lettering, UI, frames, grid or background. Genuine transparent alpha everywhere outside the silhouettes and inside openings. Retro hand-pixeled outlined sprites, clusters as if drawing each individual piece at 100–150 pixels tall, dark aubergine ink outlines, deliberate jagged steps, 3-4 shade ramps, strong highlights, no blur or smooth painting. Use the same low three-quarter roadside camera for all six, slightly above bumper level, frontal enough that faces and objects read while driving. A warm horror-comedy cast acting out their jobs at the side of the road. Strongly different silhouettes and colors between cells.
+```
+
+**Désert des mirages**
+
+```text
+Haunted Egyptian tourist highway under a midnight sky: golden sandstone, ochre wraps, turquoise faience, dark lapis blue, coral awnings. TOP LEFT a leaning date palm, broad layered green fronds, ochre dates and a tiny tied water jug at the foot; TOP MIDDLE a one-humped camel resting on folded legs, patterned red saddle, turquoise straps and two overstuffed holiday suitcases, camel head high; TOP RIGHT a squat little striped coral-and-cream awning over an oasis juice cart with a grinning crocodile vendor pouring from a copper urn into a cup. BOTTOM LEFT a broken tapering lapis-and-gold sandstone obelisk, its cracked top piece leaning against the base, incised sun and eye pictograms; BOTTOM MIDDLE a small seated blue-black Anubis jackal porter in gold collar balancing a suitcase and an ivory feather on an antique brass luggage scale, readable wide silhouette; BOTTOM RIGHT a hunched purple vulture perched on a stack of turquoise and terracotta canopic jars with animal-head lids, wings slightly out. Each cell is its own independent finished roadside sprite.
+```
+
+**Station de ski**
+
+```text
+Condemned haunted ski station. Moonlit pale blues, indigo pine shadows, warm tangerine parkas, mint spirit light, berry-red skis. TOP LEFT a grounded squat steel ski-lift pylon: one short overhanging support arm and a single hanging red chair carrying two laughing skeletons in wool hats, all connected to the central mast, no cable extending outside the cell; TOP MIDDLE a shaggy ice-blue yeti in an orange work apron leaning over a grounded wooden waxing bench and polishing a single red ski; TOP RIGHT a stout Saint Bernard mountain rescue dog standing upright on all four paws, dark tan patches on ivory fur, glowing ghost-blue ears, classic little brandy barrel collar and red rescue scarf. BOTTOM LEFT a turquoise and orange fan snow cannon on two squat wheels, angled upward, icicles on its rim, no plume extending out of the machine; BOTTOM MIDDLE three ski school monster children in bright red, mint and golden snowsuits standing with striped upright skis and one snowboard, waving at the racers as a close little group; BOTTOM RIGHT an unusually tall crooked rack of colorful upright skis with a purple scarf and a pair of boots tucked below, frost on the supporting timber beam. Each cell standalone.
+```
+
+**Monstropolis**
+
+```text
+Monstropolis at midnight, wet violet ink, electric pink, acid mint and amber neon, chunky readable urban silhouettes with color accents physically attached to objects. TOP LEFT a covered city bus shelter with a low curved teal glass roof, small orange circular stop pictogram and a pair of tired bat commuters huddled underneath, no readable letters; TOP MIDDLE a small pink wheeled street-food cart with a steamed noodle bowl topper and a happy three-eyed octopus cook tossing noodles, tight steam attached only; TOP RIGHT a tall art-deco magenta public phone booth, long mint-glowing ghost arm coiled around the handset, base visible. BOTTOM LEFT a hulking hinged-lid green dumpster mimic with two amber eyes, its bin lid raised and a tiny purple alley cat looking down from the lid, squat wide silhouette on casters; BOTTOM MIDDLE a skeleton cycle courier in teal jacket and purple helmet balancing one foot on the ground beside a stationary banana-yellow cargo bicycle loaded with parcel boxes; BOTTOM RIGHT an undead purple-skinned street saxophonist in crimson porkpie hat and teal coat, blowing a big brass sax next to an open instrument case with a few coins, planted feet, no floating music notes. No text even on the booths.
+```
+
+**Fonderie**
+
+```text
+Night shift at the infernal metalworks. Blue-black forged iron, soot violet, orange molten metal, mustard paint, sharp yellow highlights and occasional turquoise welding light. TOP LEFT a tilting steel foundry ladle on a sturdy riveted stand pouring a short attached ribbon of glowing orange metal into its ingot mould at the foot; TOP MIDDLE a fat battered ochre industrial air compressor on short iron feet with a huge exposed teal-spoked flywheel, broad red dial on top, distinct round silhouette; TOP RIGHT a helmeted skeleton welder with bent elbows leaning over a grounded steel workbench, short visible mint welding spark at the joint, bright readable work pose. BOTTOM LEFT two small tired horned imps in oil-stained overalls on their lunch break seated on a wooden crate sharing a bright turquoise thermos, one dangling boot; BOTTOM MIDDLE a tall rack of freshly cast iron ingots on two shelves with a few still glowing cherry-red, big crooked lifting tongs hanging at one end, scuffed yellow-black stripe on base; BOTTOM RIGHT a lumpy coal golem with warm gold eyes and tangerine gloves, bent under a hefty brown sack of coke over one shoulder, chipped coal pieces by its heavy feet. Each is distinct from a blast furnace, rail cart or traffic obstacle.
+```
+
+**Petits décors au sol des quatre univers**
+
+```text
+Use case: stylized-concept. ONE production atlas for Midnight Monsters, a colorful 16-bit pixel art horror-comedy racer. Eight low roadside set-dressing sprites, precisely TWO COLUMNS by FOUR ROWS, each invisible cell square on a 1:2 portrait transparent canvas. Paint each subject in the cell specified below, all eight completely isolated with generous clear margins and continuous empty horizontal and vertical gutters. Wide, LOW, chunky silhouettes grounded along the base, view from slightly above a car bumper. Use crisp pixels as if each drawing were 95 pixels wide, dark plum outlines and simple selective highlights, short three-step color ramps. Pieces in a sprite should form ONE cluster or touch each other. No letters, numbers, UI, extra vehicles, floating glows, ground planes, panels, guides or background. Real transparent alpha around each silhouette, including gaps. Row 1 is the Gobi-gold cursed Egyptian desert: left, a low windswept olive-green thorn shrub with three bold magenta flowers, a little gecko on an ochre root; right, a horizontal tumble of two broken sandstone relief blocks, one large lapis blue carved eye, a tiny dark scorpion on its edge, chipped ochre stones at foot. Row 2 is the icy ski station: left, two rounded blue-grey boulders capped with white snow, a tiny black fir sapling and short mint icicles tight against the boulders; right, a pair of red and saffron straw safety bales with two short sloping orange ski boundary poles on the SAME bale, short turquoise ski pennant, snow along the feet, no gate or open arch. Row 3 is a neon monster city: left, two squat side-by-side turquoise and magenta newspaper vending boxes with stylized bold blank paper pictograms and a coin slot, full outline to the ground; right, a stubby dark-plum and scarlet fire hydrant with brass caps, two expressive lavender alley rats sharing a discarded french fry at the base. Row 4 is the infernal night-shift foundry: left, one low heavy coil of chunky warm steel chain piled around a bright mustard crane shackle on a pair of dark slag bricks; right, two slightly tilted battered indigo and rusty orange oil drums together with a grinning little soot sprite peeking out of the open top. Nothing is airborne. All eight clusters are different, readable at a glance when small in a racing game. Exactly columns=2 and rows=4.
+```
+
+</details>
+
 ## Aire d’arrivée
 
 La caméra superpose le panorama de la dernière zone, son sol `floor_<zone>.png`, le damier, les bolides et la tribune transparente `crowd.png`. La tribune mesure 640 × 480 et entoure les huit sols. Les rectangles de `FINISH_CHEERS` et `FINISH_FLAGS` dans `js/render.js` suivent les rangées et les fanions du dessin. Les huit sols en perspective proviennent d’une planche illustrée de deux colonnes sur quatre lignes, dans l’ordre motel, marais, carnaval, cimetière, désert, station de ski, ville et fonderie. Les véhicules utilisent leurs vues du garage. [Dessins de l’arrivée](../../sprites/track/finish)
