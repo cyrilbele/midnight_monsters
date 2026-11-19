@@ -2,7 +2,7 @@
 
 // Each guest sends its controls to the host. Everyone advances the same seeded field
 // from the host's ordered 60 Hz inputs, sent two steps at a time over WebRTC.
-const ROOM_VERSION = 3;
+const ROOM_VERSION = 4;
 const ROOM_ID = /^mm-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const BOOST_BIT = 1 << 16;
 const IDLE_INPUT = 100;
@@ -51,8 +51,9 @@ class RaceRoom {
   start() {
     if (!this.canStart) return;
     const seed = crypto.getRandomValues(new Uint32Array(1))[0];
-    this.broadcast({ t: 'start', seed, rides: this.rides });
-    this.begin(seed);
+    const route = Track.drawRoute();
+    this.broadcast({ t: 'start', seed, route, rides: this.rides });
+    this.begin(seed, route);
   }
 
   async connect() {
@@ -173,10 +174,10 @@ class RaceRoom {
       this.seat = m.seat; this.rides = m.rides; this.count = m.rides.length; this.phase = 'waiting';
       Online.render();
     } else if (m.t === 'start' && this.phase === 'waiting') {
-      if (!Number.isInteger(m.seed) || !Array.isArray(m.rides) || m.rides.length !== this.count ||
+      if (!validRoute(m.route) || !Number.isInteger(m.seed) || !Array.isArray(m.rides) || m.rides.length !== this.count ||
           !m.rides.every(validRide) || new Set(m.rides).size !== this.count) return this.fail('version');
       this.rides = m.rides;
-      this.begin(m.seed);
+      this.begin(m.seed, m.route);
     } else if (m.t === 'steps' && this.phase === 'race') {
       if (!Array.isArray(m.frames) || m.frames.length > 2 || !m.frames.every(frame =>
         Array.isArray(frame) && frame.length === this.count && frame.every(bits => bits === -1 ||
@@ -239,9 +240,9 @@ class RaceRoom {
     }
   }
 
-  begin(seed) {
+  begin(seed, route) {
     this.phase = 'race';
-    Local.resetRace(this.rides, mulberry32(seed), this.seat);
+    Local.resetRace(this.rides, route, mulberry32(seed), this.seat);
     Home.page.hidden = true; Home.page = null; Home.root.hidden = true;
     G.state = 'online'; G.auto = false;
     Online.updateVoice();

@@ -20,6 +20,19 @@ Dans le garage, gauche et droite choisissent le bolide, haut et bas le font pivo
 
 L’accueil dessine son illustration à la résolution du jeu dans `Home.drawScene()` et partage le filtre `R.pixelate()` avec la course. En portrait, le cadrage conserve 640 pixels de large et recadre les côtés. Les boutons restent des contrôles HTML accessibles. Leur dessin dans `Home.drawActions()` utilise la résolution des compteurs pour garder les libellés lisibles. La rangée `.title-modes` place Jouer et Multijoueur sur la chaussée au-dessus du corbillard.
 
+### Les huit univers
+
+Chaque départ tire quatre univers distincts et leur ordre. Le décompte affiche cet itinéraire. En solo et en écran partagé, le navigateur fait un seul tirage pour toute la grille. En ligne, l’hôte envoie les quatre identifiants dans le message `start.route`, avec la grille et la graine de simulation. Chaque invité valide la liste et construit ce parcours avant le premier pas de course.
+
+Après une modification du tracé ou du protocole de départ, lancer `node --test tests/route.test.cjs` depuis la racine. Les tests vérifient le tirage, la position des épreuves et de l’arrivée, et la transmission de l’itinéraire aux invités.
+
+| Univers | Passage à reconnaître |
+| --- | --- |
+| Sarcophage Express · le désert des mirages | Slalom sur la route ensablée, passage entre les pattes du sphinx, chambre aux flammes turquoise et sortie dans la tempête. |
+| Frissons-sur-Glace · la station de ski condamnée | Le verglas prolonge la glissade. Le premier pilote qui entre dans le couloir déclenche une avalanche commune. Le tunnel abrite les bolides avant la traversée sur la main du yéti. |
+| Monstropolis · les embouteillages de minuit | Les taxis coupent les intersections et les bouches d’égout soufflent par intermittence. Passer entre les pieds du géant pendant son arrêt au feu rouge. |
+| La Fonderie des damnés · l’enfer fait les trois-huit | Sur le convoyeur, quatre presses décalées dans le temps frappent des voies différentes. Les coulées de métal et les jets de vapeur s’activent par cycles. |
+
 ### Jouer en ligne
 
 Depuis **Multijoueur → Course en ligne**, choisir 2, 3 ou 4 pilotes, créer le salon et copier le lien d’invitation. Le nombre inclut l’hôte. Chaque invité ouvre ce lien sur son appareil. Quand toutes les places sont occupées, **Lancer la course** apparaît chez l’hôte. Le décompte démarre à son appui. Si un invité quitte la grille, sa place se libère et le bouton disparaît. Chaque appareil affiche sa propre vue. En ligne, Espace accélère et `X` active le turbo. Il faut garder l’onglet de l’hôte ouvert jusqu’aux résultats. [Salon sur GitHub Pages](https://cyrilbele.github.io/midnight_monsters/?online=1)
@@ -53,17 +66,21 @@ Le nom de la nouvelle zone figure sur l’arche. Au passage, le chrono indique b
 | Sans-faute du marais | Rester sur la chaussée entre les deux lignes de lanternes et éviter tout contact pour gagner 4 secondes. |
 | Radar du carnaval | Passer entre les radars-citrouilles à 310 km/h ou plus pour gagner 4 secondes. |
 | Sprint du cimetière | Relier les deux lignes de lanternes en 9,5 secondes ou moins pour gagner 5 secondes. |
+| Slalom du désert | Franchir deux portes dans le sable rapporte 3 secondes. Franchir les trois en rapporte 5. |
+| Fuite devant l’avalanche | Rejoindre l’entrée du tunnel en 9,5 secondes ou moins rapporte 5 secondes. |
+| Radar de Monstropolis | Franchir le radar à 300 km/h ou plus rapporte 4 secondes. |
+| Convoyeur de la fonderie | Traverser la ligne des presses sur la chaussée et sans contact rapporte 4 secondes. |
 
 ## Ajouter ou remplacer un dessin
 
 - Pour **retoucher un dessin**, modifier le PNG à son chemin actuel. Pour les véhicules et objets détourés, conserver le fond transparent, l’échelle et le point de contact au sol. Les planches WebP dans `tools/sheets/` servent de références visuelles.
 - Pour **ajouter un objet de bord de route**, déposer le PNG dans `sprites/roadside/`, puis ajouter une entrée à `SPRITES` dans `js/sprites.js`. Par exemple, pour `roadside/borne.png`, utiliser `borne: { file: 'roadside/borne.png', w: 480, hit: [0.5, 0.25] }`. Le chemin est relatif à `sprites/`. La largeur `w` est exprimée en unités du monde. Le champ facultatif `hit` donne le centre horizontal et la largeur de la partie solide, en fractions de l’image.
-- Pour **placer cet objet sur le parcours**, appeler `place(0, 30, 'borne', -1.2)` dans `Track.placeLandmarks()` de `js/track.js`. La borne apparaît dans la zone du motel, 30 segments après le repère de comparaison, sur le bas-côté gauche. Les bords de la chaussée sont à −1 et +1. Pour répartir un objet sur le reste du parcours, modifier `Track.placeScenery()`.
-- Pour **aménager un arrêt au bord de la route**, utiliser `site(zone, nom, positions)` dans `Track.placeScenery()`. Chaque position donne le nombre de segments depuis l’entrée de la zone, le décalage latéral et, si besoin, l’échelle. Le jeu dégage le même côté sur les quinze segments précédents et les cinq suivants. Les groupes de pompes, les débarcadères, les attractions et les monuments utilisent ces emplacements.
-- Pour **modifier un panorama, la piste ou l’interface**, ranger le dessin dans `sprites/background/<zone>/`, `sprites/track/` ou `sprites/ui/`. Dans `js/sprites.js`, les panoramas et les sols sont déclarés dans `BACKGROUNDS`, les quatre chaussées dans `ROAD_FILES`, les arches dans `SPRITES` et l’interface dans `UI_SPRITES`. Dessiner chaque chaussée vue du dessus avec une jonction entre le haut et le bas. Dans `ZONES`, `tileSegments` règle la longueur couverte par le dessin.
+- Pour **placer cet objet sur le parcours**, appeler `place(30, 'borne', -1.2)` dans le bloc `motel` dans `Track.placeLandmarks()` de `js/track.js`. La borne apparaît dans la zone du motel, 30 segments après le repère de comparaison, sur le bas-côté gauche. Les bords de la chaussée sont à −1 et +1. Pour répartir un objet sur le reste du parcours, modifier `Track.placeScenery()`.
+- Pour **aménager un arrêt au bord de la route**, utiliser `site(nom, positions)` dans le bloc de l’univers dans `Track.placeScenery()`. Chaque position donne le nombre de segments depuis l’entrée de la zone, le décalage latéral et, si besoin, l’échelle. Le jeu dégage le même côté sur les quinze segments précédents et les cinq suivants. Les groupes de pompes, les débarcadères, les attractions et les monuments utilisent ces emplacements.
+- Pour **modifier un panorama, la piste ou l’interface**, ranger le dessin dans `sprites/background/<zone>/`, `sprites/track/` ou `sprites/ui/`. Dans `js/sprites.js`, les panoramas et les sols sont déclarés dans `BACKGROUNDS`, les huit chaussées dans `ROAD_FILES`, les arches dans `SPRITES` et l’interface dans `UI_SPRITES`. Dessiner chaque chaussée vue du dessus avec une jonction entre le haut et le bas. Dans `ZONES`, `tileSegments` règle la longueur couverte par le dessin.
 - Pour **ajouter un véhicule au trafic**, dessiner trois PNG transparents dans `sprites/traffic/<id>/`. Dans `rear.png`, le véhicule est vu de dos et s’éloigne en ligne droite. Dans `left.png` et `right.png`, le nez pointe légèrement vers la gauche ou la droite de l’écran. Conserver la même hauteur et recadrer jusqu’aux pneus dans chaque vue. Déclarer la largeur de l’arrière en unités du monde (`w`) et la vitesse de croisière (`kmh`) dans `TRAFFIC_MODELS` de `js/sprites.js`. Ajouter son nom sous `traffic.<id>` dans les cinq traductions. Le véhicule rejoint automatiquement la circulation.
 
-Pour ajuster le cadrage du bolide piloté, régler son `chaseScale` dans `VEHICLES`. Ce facteur s’applique aussi à sa largeur de collision. Pour modifier les accotements, régler `vergeW`, `verge` et `groundBands` par zone dans `js/track.js`. Le rendu de `js/render.js` doit couvrir toute la largeur au sol, y compris quand la chaussée sort du cadre.
+Pour ajuster le cadrage du bolide piloté, régler son `chaseScale` dans `VEHICLES`. Ce facteur s’applique aussi à sa largeur de collision. Pour modifier les accotements, régler `vergeW`, `verge` et `groundBands` par univers dans `js/worlds.js`. Le rendu de `js/render.js` doit couvrir toute la largeur au sol, y compris quand la chaussée sort du cadre.
 
 Le chargeur `js/assets.js` indique à l’écran le chemin d’un fichier manquant. Si une ancienne image apparaît après remplacement, recharger sans cache. Pour distribuer les nouveaux dessins sous les mêmes noms, augmenter `ART_VERSION` dans `js/sprites.js` et actualiser la version de ce script dans `index.html`.
 
@@ -257,7 +274,8 @@ Head and crest visible above the low body in all views.
 
 | Pour modifier… | Ouvrir |
 | --- | --- |
-| Le tracé, les reliefs, les décors et la grille adverse | `js/track.js` |
+| Les profils des huit univers, leurs épreuves et leurs événements | `js/worlds.js` |
+| L’assemblage des étapes, les placements et la grille adverse | `js/track.js` |
 | La conduite, les collisions, le chronomètre et les commandes | `js/game.js` |
 | Les touches partagées, les axes et les boutons des manettes | `js/input.js`, notamment `SEAT_KEYS` et `RaceInput.sample()` |
 | Le salon en ligne, les invitations et le vocal WebRTC | `js/online.js`, `js/voice.js`, PeerJS dans `vendor/peerjs-1.5.5/` |
@@ -275,25 +293,27 @@ Le son se suspend quand l’onglet passe à l’arrière-plan ou que la fenêtre
 
 Chaque texte affiché a une clé commune aux cinq langues. Conserver les paramètres entre accolades, par exemple `{time}`, même si leur ordre change dans la phrase. Utiliser `tr(...)` dans le Canvas, `data-i18n` pour le texte HTML et `data-i18n-aria` pour les libellés accessibles. `I18n.seconds()` formate les durées selon la langue. Le lettrage des panneaux peints suit leur projection dans `R.signLettering()`. Pour vérifier une modification, changer de langue dans les options, ouvrir le garage, puis recharger une vue de comparaison.
 
-Dans `Track.build()`, chaque appel à `road(entrée, maintien, sortie, courbure, dénivelé, largeurFinale)` décrit une portion de route. Les trois premières valeurs comptent des segments. Le dénivelé donne la différence d’altitude entre les extrémités, en longueurs de segment. Une valeur positive monte, une valeur négative descend. La dernière valeur règle la largeur à la sortie. La descente finale du cimetière partage un seul profil de vallée sur trois virages. La caméra suit la pente dans `R.frame()`.
+Dans `js/worlds.js`, chaque ligne de `bends` donne l’entrée, le maintien, la sortie, la courbure, le dénivelé et la largeur finale d’une portion de route. Les trois premières valeurs comptent des segments. Le dénivelé donne la différence d’altitude entre les extrémités, en longueurs de segment. Une valeur positive monte, une valeur négative descend. La dernière valeur règle la largeur à la sortie. La descente finale du cimetière partage un seul profil de vallée sur trois virages. La caméra suit la pente dans `R.frame()`.
+
+Dans chaque segment, `zone` identifie son univers dans `ZONES` et `stage` sa place dans la course (0 à 3). Les délais des checkpoints suivent `stage`. Chaque événement de `worlds.js` est placé en segments depuis le début de son univers. Les quatre univers supplémentaires utilisent `sites` pour les décors fixes, `scenery` pour les accotements, `sections` pour les changements de chaussée et de panorama, et `events` pour les obstacles. Les images sont dans `sprites/background/<univers>/`, `sprites/roadside/<univers>/` et `sprites/track/`. Pour un obstacle mobile, le rendu et la collision interrogent tous deux `Track.hazardPose()` avec le temps de simulation. [Planches et consignes de dessin](tools/sheets/world-art.md)
 
 À chaque départ, `rivalGrid()` réserve les véhicules choisis par les joueurs puis tire les adversaires pour former une grille de huit pilotes distincts. Les huit pilotes hors grille font chacun une apparition dans le trafic lent, aux côtés de Frankenstein, Freddy et la Créature du lagon. Leur largeur et leurs vues de braquage proviennent du garage. Leur vitesse de croisière vaut 80 km/h plus 8 km/h par point de vitesse.
 
 En multijoueur, `Local.advanceRace()` avance le trafic et les adversaires une fois par pas de simulation. Chaque humain utilise la conduite de `G.update()`, avec son propre chrono, ses épreuves et son turbo. Une fiole ramassée disparaît pour tous. Les joueurs arrivés ou éliminés attendent les autres. Le classement départage les arrivées dans le même pas à partir de l’instant du franchissement de la ligne.
 
-En ligne, PeerJS Cloud met les navigateurs en relation. Si les deux réseaux bloquent la connexion directe, WebRTC a besoin d’un relais TURN joignable. L’hôte attribue les places, transmet la graine de la grille et valide les commandes de chaque pas de course. Les invités rejouent ces pas dans l’ordre et affichent le classement final envoyé par l’hôte. La bibliothèque PeerJS se charge à l’ouverture d’une connexion. Lors d’un changement incompatible des messages ou des règles de simulation, incrémenter `ROOM_VERSION` dans `js/online.js` et actualiser les versions des scripts concernés dans `index.html`. [FAQ PeerJS](https://peerjs.com/client/faq)
+En ligne, PeerJS Cloud met les navigateurs en relation. Si les deux réseaux bloquent la connexion directe, WebRTC a besoin d’un relais TURN joignable. L’hôte attribue les places, transmet l’itinéraire ordonné et la graine de la grille, puis valide les commandes de chaque pas de course. Les invités rejouent ces pas dans l’ordre et affichent le classement final envoyé par l’hôte. La bibliothèque PeerJS se charge à l’ouverture d’une connexion. Lors d’un changement incompatible des messages ou des règles de simulation, incrémenter `ROOM_VERSION` dans `js/online.js` et actualiser les versions des scripts concernés dans `index.html`. [FAQ PeerJS](https://peerjs.com/client/faq)
 
 Pour le vocal, l’hôte transmet les identifiants des membres du salon et relaie les demandes d’écoute. `RoomVoice` ouvre un appel audio PeerJS direct de chaque micro actif vers chaque joueur qui souhaite l’entendre. Couper le micro arrête ses pistes. La sortie du salon ferme aussi les appels et les lecteurs audio.
 
 Le classement à trois et les résultats de fin de course partagent le gabarit `standings-panel` et les dessins `sprites/ui/standings_*.png`. Pour retoucher une vignette de bolide, modifier la vue 04 de sa planche, le profil avec le nez vers la droite. `Local.drawBoard()` associe cette vue au pilote et règle sa jauge selon la distance parcourue.
 
-Dans `js/game.js`, `G.placeTraffic()` fixe les voies et l’espacement. Les pilotes hors grille démarrent à des emplacements répartis dans la première moitié du parcours. Leur vitesse de croisière décale les rencontres jusqu’au cimetière. `G.bumpVehicle()` traite les touchettes avec le trafic et les concurrents. Le ralentissement dépend de la vitesse du véhicule rattrapé et de l’armure du joueur. La direction et l’accélérateur répondent dès la touchette. `G.countClosePasses()` accorde le bonus de turbo pour un dépassement rapproché du trafic.
+Dans `js/game.js`, `G.placeTraffic()` fixe les voies et l’espacement. Les pilotes hors grille démarrent à des emplacements répartis dans la première moitié du parcours. Leur vitesse de croisière décale les rencontres jusque dans la dernière étape. `G.bumpVehicle()` traite les touchettes avec le trafic et les concurrents. Le ralentissement dépend de la vitesse du véhicule rattrapé et de l’armure du joueur. La direction et l’accélérateur répondent dès la touchette. `G.countClosePasses()` accorde le bonus de turbo pour un dépassement rapproché du trafic.
 
 `OFFROAD_PENALTY` règle le coût d’une sortie. `OFFROAD_REARM` fixe la distance au centre que le bolide doit retrouver pour qu’une nouvelle sortie soit comptée. Pour vérifier le comportement, franchir un bord, rester sur l’accotement, revenir sur la chaussée puis ressortir de l’autre côté.
 
-Pour déplacer une épreuve ou changer sa cible, modifier `Track.placeTrials()` dans `js/track.js`. Chaque ligne de passage est placée au même segment que ses deux dessins. `G.advanceTrial()` vérifie la position à l’instant du franchissement et `G.finishTrial()` attribue le bonus une seule fois. `NEAR_MISS_GAP` règle la marge d’un frôlement et `TURBO_DURATION` la durée de la poussée. Les jauges sont dans `js/render.js`, les sons dans `js/audio.js`.
+Pour déplacer une épreuve ou changer sa cible, modifier `trial` dans la fiche de l’univers dans `js/worlds.js`. Chaque ligne de passage est placée au même segment que ses deux dessins. `G.advanceTrial()` vérifie la position à l’instant du franchissement et `G.finishTrial()` attribue le bonus une seule fois. `NEAR_MISS_GAP` règle la marge d’un frôlement et `TURBO_DURATION` la durée de la poussée. Les jauges sont dans `js/render.js`, les sons dans `js/audio.js`.
 
-`Track.placePotions()` place trois fioles par zone. Chaque paire indique la distance en segments depuis l’entrée de la zone et le décalage latéral en demi-largeurs de chaussée. Le dessin est dans `sprites/track/turbo_potion.png`. Sa largeur dans `SPRITES` sert au rendu et au ramassage. `G.collectPotions()` teste le passage de l’avant du véhicule et mémorise les fioles prises pour la course en cours.
+Le champ `potions` de chaque univers place ses trois fioles. Chaque paire indique la distance en segments depuis l’entrée de la zone et le décalage latéral en demi-largeurs de chaussée. Le dessin est dans `sprites/track/turbo_potion.png`. Sa largeur dans `SPRITES` sert au rendu et au ramassage. `G.collectPotions()` teste le passage de l’avant du véhicule et mémorise les fioles prises pour la course en cours.
 
 <details>
 <summary>Consigne de dessin de la potion (ImageGen intégré)</summary>
@@ -308,7 +328,8 @@ Draw a single collectible sprite for Midnight Monsters, a 1990s pixel-art monste
 | --- | --- |
 | Un salon en ligne | [Créer le salon](http://localhost:8642/?online=1) · choisir trois places, suivre l’invitation dans deux autres fenêtres puis vérifier le bouton de départ chez l’hôte, le vocal, le turbo et le classement. Pour jouer sur plusieurs appareils, partager le lien issu de GitHub Pages. |
 | Les dessins et les vues des pilotes, par pages de 30 | [Galerie](http://localhost:8642/?sheet=1) · changer la valeur de `sheet` pour avancer |
-| La composition des quatre zones sur le parcours jouable | [Comparaison](http://localhost:8642/?compare=1) · cliquer sur une scène pour l’agrandir |
+| La composition des huit univers | [Les quatre d’origine](http://localhost:8642/?compare=1) · [Les quatre nouveaux](http://localhost:8642/?compare=2) · cliquer sur une scène pour l’agrandir |
+| Les nouveaux passages | [Sphinx](http://localhost:8642/?compare=2&shot=4) · [Tunnel alpin](http://localhost:8642/?compare=2&shot=5) · [Géant au feu](http://localhost:8642/?compare=2&shot=6) · [Convoyeur](http://localhost:8642/?compare=2&shot=7) |
 | La première potion de turbo, au milieu de la chaussée | [Approche de la fiole au motel](http://localhost:8642/?compare=1&shot=0&seg=229) |
 | Les nouveaux décors et leurs reliefs | [Phare de la côte](http://localhost:8642/?compare=1&shot=0&seg=735) · [Débarcadère du marais](http://localhost:8642/?compare=1&shot=1&seg=2095) · [Roulotte du carnaval](http://localhost:8642/?compare=1&shot=2&seg=3650) · [Allée du mausolée](http://localhost:8642/?compare=1&shot=3&seg=5446) |
 | La taille d’un bolide ou un bas-côté précis | [Loup-garou au bord de la côte](http://localhost:8642/?compare=1&shot=0&car=werewolf&side=right) · choisir la zone, le bolide, la position et le segment dans la barre sous l’image. L’adresse reproduit ces réglages. |

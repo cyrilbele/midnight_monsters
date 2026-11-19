@@ -138,7 +138,8 @@ const Local = {
   },
 
   // Both multiplayer modes advance the same eight-car field at a fixed time step.
-  resetRace(rides, random = Math.random, ownSeat = null) {
+  resetRace(rides, route, random = Math.random, ownSeat = null) {
+    Track.startRace(route);
     this.done = false; this.countdown = 3.2; this.elapsed = 0;
     this.views = []; this.board = null; this.boardTick = -1;
     this.drivers = rides.map((vehicle, i) => {
@@ -324,6 +325,7 @@ const Local = {
       const device = this.devices[driver.localCar.seat];
       let notice = '';
       if (device !== null && !RaceInput.pads.has(device)) notice = tr('multi.padLost');
+      else if (this.countdown > 0) notice = Track.itinerary();
       else if (driver.offroadNoticeUntil > driver.elapsed) notice = driver.offroadMessage;
       else if (driver.checkpointNoticeUntil > driver.elapsed) notice = driver.checkpointMessage;
       else if (driver.passFlash > 0) notice = tr('hud.close');

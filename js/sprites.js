@@ -20,7 +20,7 @@
  * ========================================================= */
 
 // ------------------------------------------------------ roadside scenery ---
-const ART_VERSION = 19;
+const ART_VERSION = 20;
 const SPRITES = {
   palm_0: { file: 'roadside/palm/palm_0.png', w: 2600, hit: [0.5, 0.12] },
   palm_1: { file: 'roadside/palm/palm_1.png', w: 2600, hit: [0.36, 0.12] },
@@ -71,7 +71,49 @@ const SPRITES = {
   fog: { file: 'roadside/fog.png', w: 5200 },
   mausoleum: { file: 'roadside/mausoleum.png', w: 2820, hit: [0.50, 0.86] },
   stone_angel: { file: 'roadside/stone_angel.png', w: 1030, hit: [0.50, 0.72] },
+
+  sphinx: { file: 'roadside/desert/sphinx.png', w: 5100, center: true, obstacle: { bands: [[-.41,.15],[.41,.15]] } },
+  buried_station: { file: 'roadside/desert/buried_station.png', w: 2580 },
+  pyramid_hotel: { file: 'roadside/desert/pyramid_hotel.png', w: 3500 },
+  colossus: { file: 'roadside/desert/colossus.png', w: 1870 },
+  eternal_holidays: { file: 'roadside/desert/eternal_holidays.png', w: 1650, caption: { lines: ['sign.holidays'], panel: [.50,.78,.68,.12] } },
+  stranded_mummy: { file: 'roadside/desert/stranded_mummy.png', w: 1430 },
+  scarab: { file: 'roadside/desert/scarab.png', w: 690, center: true, obstacle: { swing: .54, period: 4.3 } },
+  loose_sarcophagus: { file: 'roadside/desert/loose_sarcophagus.png', w: 860, center: true, obstacle: {} },
+  turquoise_brazier: { file: 'roadside/desert/turquoise_brazier.png', w: 410 },
+
+  ski_tunnel: { file: 'roadside/alpine/ski_tunnel.png', w: 5100, center: true },
+  frost_fir: { file: 'roadside/alpine/frost_fir.png', w: 1650 },
+  ski_chalet: { file: 'roadside/alpine/ski_chalet.png', w: 2900 },
+  chain_ghost: { file: 'roadside/alpine/chain_ghost.png', w: 800, caption: { lines: ['sign.chains'], panel: [.50,.49,.90,.12] } },
+  yeti_palm: { file: 'roadside/alpine/yeti_palm.png', w: 1960 },
+  snow_wave: { file: 'roadside/alpine/snow_wave.png', w: 3750 },
+  snowplow: { file: 'roadside/alpine/snowplow.png', w: 1020, center: true, obstacle: { swing: .44, period: 5.8 } },
+  ghost_skier: { file: 'roadside/alpine/ghost_skier.png', w: 640, center: true, obstacle: { swing: 1.16, period: 4.6 } },
+  black_ice: { file: 'roadside/alpine/black_ice.png', w: 1080, center: true, obstacle: { effect: 'ice' } },
+
+  commuter_giant: { file: 'roadside/city/commuter_giant.png', w: 4100, center: true, obstacle: { motion: 'walk', swing: .48, period: 8, bands: [[-.36,.18],[.36,.18]] } },
+  night_diner: { file: 'roadside/city/night_diner.png', w: 2420, caption: { lines: ['sign.diner'], panel: [.50,.34,.88,.10] } },
+  office_queue: { file: 'roadside/city/office_queue.png', w: 1900 },
+  red_light: { file: 'roadside/city/red_light.png', w: 330 },
+  ghost_taxi: { file: 'roadside/city/ghost_taxi.png', w: 920, center: true, obstacle: { swing: .91, period: 3.6 } },
+  roadworks: { file: 'roadside/city/roadworks.png', w: 840, center: true, obstacle: {} },
+  steam_grate: { file: 'roadside/city/steam_grate.png', w: 660, center: true, obstacle: { motion: 'pulse', period: 3.5 } },
+  diner_neon: { file: 'roadside/city/diner_neon.png', w: 660 },
+  metro_lamp: { file: 'roadside/city/metro_lamp.png', w: 620 },
+
+  press_gantry: { file: 'roadside/foundry/press_gantry.png', w: 4870, center: true },
+  press_die: { file: 'roadside/foundry/press_die.png', w: 1140, center: true, obstacle: { motion: 'press', period: 4.6 } },
+  blast_furnace: { file: 'roadside/foundry/blast_furnace.png', w: 2850 },
+  strike_demons: { file: 'roadside/foundry/strike_demons.png', w: 2280, caption: { lines: ['sign.strike1', 'sign.strike2'], panel: [.50,.62,.78,.29] } },
+  ore_cart: { file: 'roadside/foundry/ore_cart.png', w: 870, center: true, obstacle: { swing: .77, period: 5.2 } },
+  steam_pipe: { file: 'roadside/foundry/steam_pipe.png', w: 830, center: true, obstacle: { motion: 'pulse', period: 3.9 } },
+  molten_spill: { file: 'roadside/foundry/molten_spill.png', w: 1200, center: true, obstacle: { motion: 'pulse', period: 4.8 } },
+  chain_hook: { file: 'roadside/foundry/chain_hook.png', w: 980 },
+  coffin_line: { file: 'roadside/foundry/coffin_line.png', w: 2240 },
   arch_start: { file: 'track/arch/arch_start.png', w: 6200, center: true, sign: 'sign.rally' },
+  sphinx_wall: { file: 'background/desert/temple.png', w: 420 },
+  tunnel_wall: { file: 'background/alpine/tunnel.png', w: 420 },
   arch_swamp: { file: 'track/arch/arch_swamp.png', w: 6200, center: true, sign: 'zone.swamp' },
   arch_carnival: { file: 'track/arch/arch_carnival.png', w: 6200, center: true, sign: 'zone.carnival' },
   arch_cemetery: { file: 'track/arch/arch_cemetery.png', w: 6200, center: true, sign: 'zone.cemetery' },
@@ -87,12 +129,25 @@ const ROAD_FILES = {
   swamp: 'track/road_swamp.png',
   carnival: 'track/road_carnival.png',
   cemetery: 'track/road_cemetery.png',
+  desert: 'track/road_desert.png',
+  alpine: 'track/road_alpine.png',
+  city: 'track/road_city.png',
+  foundry: 'track/road_foundry.png',
 };
-const BACKGROUNDS = Object.entries(ROAD_FILES).map(([z, road]) => ({
+const WORLD_SURFACES = {
+  motel: { pavement: 'track/motel_pavement.png' },
+  desert: { temple: 'track/temple_desert.png', sand: 'track/sand_desert.png',
+    templeSky: 'background/desert/temple.png', stormSky: 'background/desert/sandstorm.png' },
+  alpine: { bore: 'track/bore_alpine.png', bridge: 'track/bridge_alpine.png', boreSky: 'background/alpine/tunnel.png',
+    ravineSky: 'background/alpine/ravine.png', ravineGround: 'track/ravine_alpine.png' },
+  city: { crosswalk: 'track/crosswalk_city.png', wet: 'track/wet_city.png' },
+  foundry: { belt: 'track/belt_foundry.png', hot: 'track/hot_foundry.png' },
+};
+const BACKGROUNDS = ZONES.map(({ id: z }) => ({
   panorama: `background/${z}/${z}_panorama.png`,
   ground: `track/ground_${z}.png`,
-  road,
-  ...(z === 'motel' ? { pavement: 'track/motel_pavement.png' } : {}),
+  road: ROAD_FILES[z],
+  ...WORLD_SURFACES[z],
 }));
 
 // --------------------------------------------------------- select screen ---

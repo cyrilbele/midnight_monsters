@@ -30,7 +30,7 @@ const G = {
   state: 'loading', audio: Sound,
   position: 0, playerX: 0, speed: 0, steer: 0,
   time: START_TIME, dawn: DAWN_MAX, dawnT: 0, elapsed: 0,
-  rank: 8, zone: 0, cars: [], traffic: [], keys: {}, shake: 0, pixel: params.get('px') === '1',
+  rank: 8, stage: 0, cars: [], traffic: [], keys: {}, shake: 0, pixel: params.get('px') === '1',
   hillOffset: 0,
   msg: null, countdown: 0, results: null, auto: params.has('auto'),
   vehicle: Object.hasOwn(VEHICLES, params.get('car')) ? params.get('car') : 'hearse', yawS: 0,
@@ -68,7 +68,8 @@ const G = {
   resetDriver() {
     this.position = 0; this.playerX = 0; this.speed = 0; this.steer = 0;
     this.time = START_TIME; this.dawn = DAWN_MAX; this.dawnT = 0; this.elapsed = 0;
-    this.rank = 8; this.zone = 0; this.shake = 0; this.msg = null; this.results = null;
+    this.rank = 8; this.stage = 0; this.shake = 0; this.msg = null; this.results = null;
+    this.iceLeft = 0; this.slide = 0; this.caughtBySnow = false;
     this.hillOffset = 0.19;
     this.frozen = false; this.finishedAt = 0; this.yawS = 0;
     this.bumpedCar = null;
@@ -190,6 +191,17 @@ const G = {
       const obstacles = [];
       for (let n = Math.max(0, seg.index - 1); n <= Math.min(seg.index + 55, Track.segments.length - 1); n++) {
         const road = Track.segments[n];
+        for (const sp of road.hazards || []) {
+          const seconds = (n * SEG - z) / Math.max(this.speed, 1);
+          if (seconds < 0 || seconds > 1.4) continue;
+          const pose = Track.hazardPose(sp, this.elapsed + seconds);
+          if (!pose.active) continue;
+          for (const [center, span] of sp.obstacle.bands || BODY_BAND) {
+            const x = pose.offset + center * sp.w / road.halfWidth;
+            const margin = (this.playerWorldWidth + sp.w * span) * .52 / road.halfWidth;
+            obstacles.push({ x, margin, seconds });
+          }
+        }
         for (const car of road.cars) {
           if (car === this.localCar) continue;
           const gap = car.z - z, closing = this.speed - car.speed;
@@ -258,7 +270,11 @@ const G = {
     this.position = Math.min(this.position + dt * this.speed, Track.length - (DRAW_DIST + 5) * SEG);
 
     this.steer = left ? -1 : right ? 1 : (controls.axis || 0);
-    this.playerX += this.steer * dx;
+    if (this.iceLeft > 0) {
+      this.slide = U.lerp(this.slide, this.steer, Math.min(1, 2.3 * dt));
+      this.iceLeft = Math.max(0, this.iceLeft - dt);
+    } else this.slide = this.steer;
+    this.playerX += this.slide * dx;
     this.playerX -= dx * speedPct * playerSeg.curve * this.centrifugal;
     // view of the car: 1 frame when steering, 2 when leaning into a fast curve
     const lean = this.steer && Math.sign(playerSeg.curve) === Math.sign(this.steer) && Math.abs(playerSeg.curve) > 1.5 && speedPct > 0.6 ? 2 : 1;
@@ -272,7 +288,23 @@ const G = {
     else if (up) this.speed = U.accelerate(this.speed, this.accel * up, dt);
     else this.speed = U.accelerate(this.speed, DECEL, dt);
 
-    let impact = false;
+    if (playerSeg.surface === 'sand' && lateral > .62) this.speed *= 1 - .36 * dt;
+    const startZ = startPos + PLAYER_Z, endZ = this.position + PLAYER_Z;
+    const hazard = driving && Track.hazardContact(startZ, endZ, startX, this.playerX, this.playerWorldWidth, this.elapsed, dt);
+    const wave = Track.avalancheZ(this.elapsed);
+    const snow = driving && !this.caughtBySnow && wave !== null && endZ >= Track.avalanche.from * SEG && endZ <= wave;
+    let impact = !!(hazard || snow);
+    if (impact) {
+      if (snow) this.caughtBySnow = true;
+      if (hazard?.obstacle.effect === 'ice') {
+        this.iceLeft = 1.45;
+        this.slide = this.steer || (this.playerX < 0 ? -.62 : .62);
+        this.speed *= .91;
+      } else {
+        this.speed *= snow ? .68 : .58;
+        this.shake = .54; this.audio?.bump();
+      }
+    }
     if (offroad) {
       if (this.speed > OFFROAD_LIMIT) this.speed = U.accelerate(this.speed, OFFROAD_DECEL, dt);
       for (const sp of playerSeg.sprites) {
@@ -316,9 +348,9 @@ const G = {
     this.dawnT = U.limit(1 - this.dawn / DAWN_MAX, 0, 1);
 
     // checkpoints
-    const zNow = Track.find(pz).zone;
-    if (zNow > this.zone && zNow < 4) {
-      this.zone = zNow;
+    const zNow = Track.find(pz).stage;
+    if (zNow > this.stage) {
+      this.stage = zNow;
       const gain = this.adjustCheckpointTime(CHECKPOINT_BONUS[zNow]);
       this.checkpointMessage = tr('race.checkpoint', { time: I18n.seconds(gain) });
       this.checkpointNoticeUntil = gain ? this.elapsed + 1.8 : 0;
@@ -375,7 +407,7 @@ const G = {
       this.trialsWon++;
     }
     this.audio?.trialResult(bonus > 0);
-    this.trialNotice = { title: tr('trial.' + trial.kind), text: detail + (gain ? '   +' + I18n.seconds(gain) : ''), won: bonus > 0, until: this.elapsed + 2.6 };
+    this.trialNotice = { title: tr(trial.title), text: detail + (gain ? '   +' + I18n.seconds(gain) : ''), won: bonus > 0, until: this.elapsed + 2.6 };
     this.trialIndex++;
     this.trialGate = 0; this.trialHits = 0;
   },
@@ -507,6 +539,7 @@ const G = {
 
   updateCars(dt, playerSeg, elapsed = this.elapsed) {
     const pz = this.position + PLAYER_Z;
+    if (Track.avalanche?.started === null) Track.advanceAvalanche(Math.max(pz, ...this.cars.map(car => car.z)), elapsed);
     for (const car of this.cars) {
       const old = Track.find(car.z);
       // speed: launch delay, rubber band, finish
@@ -523,7 +556,9 @@ const G = {
       car.offset += this.steerCar(car, old, playerSeg);
       car.offset = U.limit(car.offset, -0.85, 0.85);
       car.turn = (car.offset - prevOffset) / dt;
-      this.moveCar(car, Math.min(car.z + dt * car.speed, Track.length - (DRAW_DIST + 20) * SEG));
+      const destination = Math.min(car.z + dt * car.speed, Track.length - (DRAW_DIST + 20) * SEG);
+      if (Track.hazardContact(car.z, destination, prevOffset, car.offset, car.w, elapsed, dt)) car.speed *= .64;
+      this.moveCar(car, destination);
       car.bounce = (Math.random() - 0.5) * (car.speed / MAX_SPEED) * 1.2;
       if (!car.finished && car.z >= Track.finishSeg * SEG) {
         car.finished = true;
@@ -538,6 +573,15 @@ const G = {
     for (let i = 1; i < 20; i++) {
       const seg = Track.segments[carSeg.index + i];
       if (!seg) break;
+      for (const sp of seg.hazards || []) {
+        const pose = Track.hazardPose(sp, this.elapsed + i * SEG / Math.max(car.speed, 1));
+        if (!pose.active) continue;
+        const w = sp.w / seg.halfWidth;
+        for (const [center, span] of sp.obstacle.bands || BODY_BAND) {
+          const x = pose.offset + center * w;
+          if (U.overlap(car.offset, carW, x, span * w)) return (x >= car.offset ? -1 : 1) * .042;
+        }
+      }
       if (seg === playerSeg && car.speed > this.speed && U.overlap(this.playerX, this.playerW, car.offset, carW, 1.2)) {
         const dir = this.playerX > 0.5 ? -1 : this.playerX < -0.5 ? 1 : (car.offset > this.playerX ? 1 : -1);
         return dir * (1 / i) * (car.speed - this.speed) / MAX_SPEED;
@@ -562,6 +606,7 @@ const G = {
 
   start() {
     Sound.startMusic();
+    Track.startRace();
     this.reset();
     this.state = 'countdown';
     this.countdown = 3.2;
@@ -706,19 +751,29 @@ function drawScreens() {
 }
 
 // -------------------------------------------- reference "screenshot" mode ---
-// ?shot=0..3 freezes a scene composed like the reference art (debug / art review)
+// Stable world indices for art review, independent of the randomly drawn race.
 const SHOTS = [
   { cars: [['vampire', 7, -0.44, 2], ['werewolf', 10.5, 0.66, 1]], traffic: ['frankenstein', 17, 0.05], dawnT: 0.03, playerX: 0.14, hill: 0.15 },
   { cars: [['werewolf', 3.4, -0.42, 2], ['kappa', 22, 0.36, -1]], traffic: ['lagoon', 10, 0.56], dawnT: 0.10, playerX: -0.04, hill: 0.11 },
   { cars: [['mummy', 1, -0.38, 2], ['dokkaebi', 14, -0.02, 1], ['werewolf', 65, 0.12, 0]], traffic: ['freddy', 6, 0.60], dawnT: 0.04, playerX: 0, hill: 0.895 },
   { cars: [['baba_yaga', 10, -0.62, 1], ['iku_turso', 16, 0.50, -1], ['vampire', 36, 0.18, 0], ['werewolf', 60, -0.2, 1]], traffic: ['frankenstein', 7, 0.30], dawnT: 0.92, playerX: 0.04, hill: 0.20 },
+  { cars: [['jiangshi', 15, -.44, 1], ['mummy', 38, .40, 0]], traffic: ['rakshasa', 62, .18], dawnT: .12, playerX: .12, hill: .14 },
+  { cars: [['baba_yaga', 14, -.48, -1], ['kappa', 36, .38, 0]], traffic: ['werewolf', 57, .18], dawnT: .18, playerX: .04, hill: .06 },
+  { cars: [['vampire', 15, .45, -1], ['tokoloshe', 34, -.54, 0]], traffic: ['freddy', 58, .45], dawnT: .13, playerX: -.08, hill: .19 },
+  { cars: [['ankou', 16, -.46, 1], ['dokkaebi', 39, .48, 0]], traffic: ['frankenstein', 56, .16], dawnT: .16, playerX: .06, hill: .12 },
 ];
+function previewGroup() {
+  const shot = Number(params.get('shot'));
+  if (params.has('shot') && Number.isFinite(shot)) return Math.floor(U.limit(shot, 0, SHOTS.length - 1) / STAGE_COUNT);
+  return params.get('compare') === '2' ? 1 : 0;
+}
 function setupShot(i, segment = params.get('seg'), playerX = SHOTS[i].playerX, focusTraffic = '') {
   const s = SHOTS[i];
   G.reset(false, mulberry32(13));
   Track.segments.forEach(sg => (sg.cars.length = 0));
   const requested = segment === null || segment === '' ? NaN : Number(segment);
-  const seg = Number.isFinite(requested) ? U.limit(Math.trunc(requested), 0, Track.segments.length - DRAW_DIST - 1) : Track.landmarks[i];
+  const stage = Track.route.indexOf(WORLD_IDS[i]);
+  const seg = Number.isFinite(requested) ? U.limit(Math.trunc(requested), 0, Track.segments.length - DRAW_DIST - 1) : Track.landmarks[stage];
   G.position = seg * SEG;
   G.playerX = playerX;
   const rivals = focusTraffic ? s.cars.filter(([id, ahead]) => ahead > 14 && id !== focusTraffic) : s.cars;
@@ -734,7 +789,7 @@ function setupShot(i, segment = params.get('seg'), playerX = SHOTS[i].playerX, f
   const nearLane = U.limit(playerX + (playerX > 0.55 ? -0.48 : 0.48), -0.78, 0.78);
   G.addTraffic(focusTraffic || model, G.position + PLAYER_Z + (focusTraffic ? 3 : distance) * SEG, focusTraffic ? nearLane : lane);
   G.rank = 3; G.time = 57.6; G.speed = MAX_SPEED * 186 / KMH; G.dawnT = s.dawnT;
-  G.hillOffset = s.hill;
+  G.hillOffset = s.hill; G.elapsed = 5; G.stage = Track.find(G.position + PLAYER_Z).stage;
   G.frozen = true; G.state = 'shot';
 }
 
@@ -770,8 +825,8 @@ function drawCompare() {
   big.width = W * 2 + 6; big.height = H * 2 + 6;
   const b = big.getContext('2d');
   b.fillStyle = '#000'; b.fillRect(0, 0, big.width, big.height);
-  for (let i = 0; i < 4; i++) {
-    setupShot(i, Track.landmarks[i]);
+  for (let i = 0; i < Track.route.length; i++) {
+    setupShot(WORLD_IDS.indexOf(Track.route[i]), Track.landmarks[i]);
     R.frame(G); if (G.pixel) R.pixelate(); R.hud(G);
     b.drawImage(R.ctx.canvas, (i % 2) * (W + 6), Math.floor(i / 2) * (H + 6));
   }
@@ -782,10 +837,11 @@ function drawCompare() {
 function openComparison() {
   const form = document.getElementById('compare-controls');
   const { shot, car, side, seg, traffic } = form.elements;
-  const selected = params.get('shot') || '';
-  shot.value = selected;
-  const single = shot.value !== '';
-  const zone = Number(shot.value);
+  const group = previewGroup();
+  const requested = params.get('shot');
+  const zone = Number(requested);
+  const single = requested !== null && requested !== '' && Number.isInteger(zone) && zone >= 0 && zone < SHOTS.length;
+  shot.value = single ? String(zone) : group ? 'new' : '';
   for (const id of Object.keys(VEHICLES)) car.add(new Option(I18n.copy.vehicles[id].label, id));
   const models = [...Object.keys(TRAFFIC_MODELS), ...Object.keys(VEHICLES).filter(id => id !== G.vehicle)];
   for (const id of models) traffic.add(new Option(trafficName(id), id));
@@ -799,6 +855,8 @@ function openComparison() {
     const next = new URLSearchParams(params);
     if (key === 'shot') {
       next.delete('seg');
+      next.set('compare', value === 'new' || Number(value) >= STAGE_COUNT ? '2' : '1');
+      if (value === 'new') value = '';
       if (value === '') { next.delete('side'); next.delete('traffic'); }
     }
     if (key === 'car' && value === next.get('traffic')) next.delete('traffic');
@@ -821,17 +879,17 @@ function openComparison() {
     if (e.code === 'KeyP') change('px', G.pixel ? '0' : '1');
   });
   if (single) {
-    seg.min = Track.zoneStart[zone];
-    seg.max = Math.min(Track.zoneStart[zone + 1] - 1 - Math.floor(PLAYER_Z / SEG), Track.segments.length - DRAW_DIST - 1);
+    const stage = Track.route.indexOf(WORLD_IDS[zone]);
+    seg.min = Track.zoneStart[stage];
+    seg.max = Track.zoneStart[stage + 1] - 1 - Math.ceil(PLAYER_Z / SEG);
     const raw = params.get('seg')?.trim(), n = Number(raw);
-    seg.value = raw && Number.isFinite(n) ? U.limit(Math.trunc(n), Number(seg.min), Number(seg.max)) : Track.landmarks[zone];
+    seg.value = raw && Number.isFinite(n) ? U.limit(Math.trunc(n), Number(seg.min), Number(seg.max)) : Track.landmarks[stage];
     const edge = params.get('side');
     side.value = edge === 'left' || edge === 'right' ? edge : '';
     const x = side.value === 'left' ? -1.19 : side.value === 'right' ? 1.19 : SHOTS[zone].playerX;
     setupShot(zone, seg.valueAsNumber, x, traffic.value);
     R.frame(G); if (G.pixel) R.pixelate(); R.hud(G);
   } else {
-    shot.value = '';
     drawCompare();
     canvas.classList.add('compare-grid');
     canvas.title = tr('compare.zoom');
@@ -840,7 +898,7 @@ function openComparison() {
       const x = (e.clientX - rect.left) * canvas.width / rect.width;
       const y = (e.clientY - rect.top) * canvas.height / rect.height;
       if ((x >= W && x < W + 6) || (y >= H && y < H + 6)) return;
-      change('shot', String((y >= H + 6 ? 2 : 0) + (x >= W + 6 ? 1 : 0)));
+      change('shot', String(group * STAGE_COUNT + (y >= H + 6 ? 2 : 0) + (x >= W + 6 ? 1 : 0)));
     });
   }
   fit();
@@ -868,7 +926,8 @@ fit();
     ctx.strokeStyle = '#fff'; ctx.strokeRect(W / 2 - 151, H / 2 - 1, 302, 12);
   };
   loading(0);
-  Track.build();
+  const firstWorld = previewGroup() * STAGE_COUNT;
+  Track.build(WORLD_IDS.slice(firstWorld, firstWorld + STAGE_COUNT));
   try {
     await A.load(loading);
   } catch (err) {

@@ -45,19 +45,33 @@ const R = {
     ctx.save();
     if (G.shake > 0) ctx.translate(Math.round((Math.random() - 0.5) * G.shake * 10), Math.round((Math.random() - 0.5) * G.shake * 6));
 
-    const zi = playerSeg.zone;
-    const zt = zi > 0 ? U.limit((playerSeg.index - Track.zoneStart[zi]) / 90, 0, 1) : 1;
+    const zi = playerSeg.zone, start = Track.zoneStart[playerSeg.stage];
+    const previous = playerSeg.stage ? Track.segments[start - 1].zone : zi;
+    const zt = previous === zi ? 1 : U.limit((playerSeg.index - start) / 90, 0, 1);
     // Ease the camera into the next slope while keeping the tyres at PLAYER_BASE.
     const behind = Track.find(G.position + PLAYER_Z - 8 * SEG);
     const ahead = Track.find(G.position + PLAYER_Z + 16 * SEG);
     const rise = U.lerp(ahead.p1.world.y - behind.p1.world.y, ahead.p2.world.y - behind.p2.world.y, playerPercent);
     const grade = rise / (Math.max(1, ahead.index - behind.index) * SEG);
-    this.horizon = U.lerp(ZONES[Math.max(0, zi - 1)].horizon, ZONES[zi].horizon, zt) + U.limit(grade * 40, -18, 18);
+    this.horizon = U.lerp(ZONES[previous].horizon, ZONES[zi].horizon, zt) + U.limit(grade * 40, -18, 18);
     const distant = Track.find(G.position + 120 * SEG).p1.world;
     const fall = (playerY - distant.y) * CAM_DEPTH * (PLAYER_BASE - this.horizon) / (120 * SEG);
-    this.backgrounds(G, zi, zt, Math.max(0, fall));
+    this.backgrounds(G, zi, previous, zt, Math.max(0, fall), playerSeg.backdrop);
     this.road(G, baseSeg, basePercent, playerY);
     this.sprites(G, baseSeg, playerSeg, playerPercent);
+    const snowZ = Track.avalancheZ(G.elapsed);
+    if (snowZ !== null && playerSeg.index >= Track.avalanche.from - 25 && playerSeg.index < Track.avalanche.to) {
+      // In a rear chase camera the approaching powder first curls around the two lower corners.
+      const distance = Math.abs(G.position + PLAYER_Z - snowZ) / SEG;
+      if (distance < 48) {
+        const w = Math.round((1 - distance / 48) * Math.min(this.width * .32, 260)) + 1;
+        const img = A.img.snow_wave, h = w * img.height / img.width;
+        ctx.globalAlpha = .80;
+        ctx.drawImage(img, -w * .14, H - h * .80, w, h);
+        ctx.drawImage(A.get('snow_wave', true), this.width - w * .86, H - h * .80, w, h);
+        ctx.globalAlpha = 1;
+      }
+    }
     ctx.restore();
     if (G.turboLeft > 0) {
       const envelope = Math.min(1, (G.elapsed - G.turboStart) * 6, G.turboLeft * 4);
@@ -67,14 +81,14 @@ const R = {
     }
   },
 
-  backgrounds(G, zi, blend, fall) {
+  backgrounds(G, zi, previous, blend, fall, backdrop) {
     const ctx = this.ctx;
     ctx.fillStyle = ZONES[zi].groundBands[0];
     ctx.fillRect(0, 0, this.width, H);
-    const panorama = (z, opacity) => {
-      const image = A.bg[z].panorama;
+    const panorama = (z, opacity, layer = 'panorama') => {
+      const image = A.bg[z][layer];
       const width = ZONES[z].panoramaWidth;
-      const extra = [23, 51, 22, 100][z];
+      const extra = ZONES[z].panoramaExtra;
       const height = Math.round(this.horizon + extra + fall);
       ctx.globalAlpha = opacity;
       const sky = z === 0 || z === 2 ? 45 : 20;
@@ -105,8 +119,8 @@ const R = {
         paint(0, image.width, left, width);
       }
     };
-    if (blend < 1) panorama(zi - 1, 1);
-    panorama(zi, blend);
+    if (blend < 1) panorama(previous, 1);
+    panorama(zi, blend, backdrop);
     ctx.globalAlpha = 1;
     // The sky gets warmer as the dawn clock runs down.
     if (G.dawnT > 0) {
@@ -149,11 +163,14 @@ const R = {
     const fog = this.fogCache[zone.id], fogK = zone.fogK || 1;
     const iz1 = 1 / seg.p1.camera.z, iz2 = 1 / seg.p2.camera.z, dy = y1 - y2;
     const fogMax = DRAW_DIST * SEG;
-    const bg = A.bg[seg.zone], surface = bg.road;
+    const bg = A.bg[seg.zone], surface = bg[seg.surface || 'road'];
+    const bridge = !!seg.textureSpan, tunnel = seg.surface === 'temple' || seg.surface === 'bore';
+    const ground = bridge ? bg.ravineGround : tunnel ? surface : bg.ground;
     const period = zone.tileSegments * SEG;
     // A far segment can fit an entire stretch of cobbles in a pixel. Average
     // the painting at that depth so its joints and wood grain stay steady in motion.
-    const textureWidth = Math.max(12, Math.min(p2.w * 2 * TEX_SPAN, dy * zone.tileSegments * surface.width / surface.height));
+    const textureSegments = bridge ? seg.textureSpan.length : zone.tileSegments;
+    const textureWidth = Math.max(12, Math.min(p2.w * 2 * TEX_SPAN, dy * textureSegments * surface.width / surface.height));
     const road = this.sourceAtSize(surface, textureWidth);
     for (let y = yStart; y < yEnd; y += step) {
       const t = U.limit((y1 - (y + 0.5)) / dy, 0, 1);
@@ -167,27 +184,30 @@ const R = {
       const depth = zc / SEG;
       // A visible terrain row occludes the panorama across the whole screen,
       // even when a crest rises above the horizon or the road bends out of view.
-      ctx.fillStyle = zone.groundBands[band];
+      ctx.fillStyle = bridge ? '#403855' : tunnel ? '#292237' : zone.groundBands[band];
       ctx.fillRect(0, y, width, step);
       if (zone.pavementBands && xc > edge) {
         ctx.fillStyle = zone.pavementBands[band];
         ctx.fillRect(0, y, Math.min(width, Math.ceil(xc - edge)), step);
       }
-      if (xc > edge || xc + edge < width) {
+      if (bridge) {
+        this.groundRow(ground, wz, xc, w, y, 0, width);
+      } else if (xc > edge || xc + edge < width) {
         const far = U.limit((depth - 19) / (seg.zone === 3 ? 42 : 56), 0, 1);
         ctx.globalAlpha = 0.85 - 0.52 * far;
-        if (xc > edge) this.groundRow(bg.pavement || bg.ground, wz, xc, w, y, 0, Math.min(width, xc - edge + 1));
-        if (xc + edge < width) this.groundRow(bg.ground, wz, xc, w, y, Math.max(0, xc + edge - 1), width);
+        if (xc > edge) this.groundRow(bg.pavement || ground, wz, xc, w, y, 0, Math.min(width, xc - edge + 1));
+        if (xc + edge < width) this.groundRow(ground, wz, xc, w, y, Math.max(0, xc + edge - 1), width);
         ctx.globalAlpha = 1;
       }
       ctx.globalAlpha = 0.72;
-      ctx.fillStyle = zone.verge[band];
-      ctx.fillRect(xc - verge, y, verge * 2, step);
+      ctx.fillStyle = tunnel ? '#3c3447' : zone.verge[band];
+      if (!bridge) ctx.fillRect(xc - verge, y, verge * 2, step);
       ctx.globalAlpha = 1;
       // Alternate the direction of the painting so the adjoining rows meet
       // exactly, including loose stones and the ends of the boardwalk planks.
       const phase = (wz / period) % 2;
-      const tr = Math.min(road.height - 1, Math.floor((phase < 1 ? phase : 2 - phase) * road.height));
+      const texY = bridge ? 1 - (wz / SEG - seg.textureSpan.from) / seg.textureSpan.length : phase < 1 ? phase : 2 - phase;
+      const tr = U.limit(Math.floor(texY * road.height), 0, road.height - 1);
       ctx.drawImage(road, 0, tr, road.width, 1, xc - edge, y, edge * 2, step);
       // distance haze
       const f = zc / fogMax;
@@ -239,8 +259,10 @@ const R = {
           this.frontage(seg, sp, alpha);
           continue;
         }
-        const sx = seg.p1.screen.x + seg.p1.screen.w * sp.offset;
-        this.sprite(sp.name, sp.flip, sp.w, scale, sx, seg.p1.screen.y, -sp.anchor, seg.clip, alpha);
+        const pose = sp.obstacle && Track.hazardPose(sp, G.elapsed);
+        const sx = seg.p1.screen.x + seg.p1.screen.w * (pose ? pose.offset : sp.offset);
+        const sy = seg.p1.screen.y - (pose ? pose.lift * scale * (PLAYER_BASE - this.horizon) : 0);
+        this.sprite(sp, scale, sx, sy, seg.clip, alpha, pose ? pose.height : 1);
       }
       const cars = seg.cars.length > 1 ? [...seg.cars].sort((a, b) => b.z - a.z) : seg.cars;
       let drawPlayer = seg === playerSeg && G.showPlayer !== false;
@@ -273,9 +295,10 @@ const R = {
     }
   },
 
-  sprite(name, flip, worldW, scale, x, y, ax, clipY, alpha) {
-    const img = A.get(name, flip);
-    if (img) this.blit(img, worldW, scale, x, y, ax, clipY, alpha, 1, I18n.language !== 'en' && SPRITES[name].sign);
+  sprite(sp, scale, x, y, clipY, alpha, height) {
+    const img = A.get(sp.name, sp.flip), def = SPRITES[sp.name];
+    const sign = sp.sign ? sp : def.caption || (I18n.language !== 'en' && def.sign);
+    if (img) this.blit(img, sp.w, scale, x, y, -sp.anchor, clipY, alpha, height, sign);
   },
 
   frontage(seg, sp, alpha) {
@@ -338,7 +361,7 @@ const R = {
       ctx.save();
       ctx.beginPath(); ctx.rect(dx, dy, dw, dh - clipH); ctx.clip();
       ctx.translate(dx, dy); ctx.scale(dw / img.width, dh / img.height);
-      this.signLettering(sign);
+      this.signLettering(sign, img.width, img.height);
       ctx.restore();
     }
     if (alpha < 1) ctx.globalAlpha = 1;
@@ -346,7 +369,7 @@ const R = {
 
   // The coordinates follow the lettering panels in the original PNGs.
   // Draw the translation in the same projection and depth pass as the sign.
-  signLettering(sign) {
+  signLettering(sign, width, height) {
     const ctx = this.ctx;
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     const line = (key, x, y, size, width, color, shadow) => {
@@ -360,7 +383,13 @@ const R = {
       for (let i = 1; i < points.length; i++) ctx.lineTo(...points[i]);
       ctx.closePath(); ctx.fill();
     };
-    if (sign === 'motel') {
+    if (sign.panel) {
+      const [cx, cy, w, h] = sign.panel;
+      const lineH = h * height / sign.lines.length;
+      ctx.fillStyle = '#322235'; ctx.fillRect((cx - w / 2) * width, (cy - h / 2) * height, w * width, h * height);
+      sign.lines.forEach((key, i) => line(key, cx * width, (cy - h / 2) * height + (i + .82) * lineH,
+        lineH * .87, w * width - 4, '#ffe7aa', '#261931'));
+    } else if (sign === 'motel') {
       if (tr('sign.motel') !== I18n.catalogs.en.strings['sign.motel']) {
         face('#790554', [[24,115], [200,124], [196,173], [27,171]]);
         line('sign.motel', 111, 161, 39, 162, '#fff0fb', '#ff25b5');
@@ -382,8 +411,8 @@ const R = {
       line(sign, 270, 66, 33, 165, '#ffd648', '#8d330b');
     } else {
       ctx.fillStyle = '#1b061b'; ctx.fillRect(75, 38, 390, 34);
-      line(sign, 270, 59, 25, 379, '#ffd648', '#8d330b');
-      line(sign === 'sign.rally' ? 'sign.start' : 'sign.checkpoint', 270, 71, 12, 328, '#f8eaf9', '#47143c');
+      line(sign.sign || sign, 270, 59, 25, 379, '#ffd648', '#8d330b');
+      line(sign.start || sign === 'sign.rally' ? 'sign.start' : 'sign.checkpoint', 270, 71, 12, 328, '#f8eaf9', '#47143c');
     }
   },
 
@@ -534,6 +563,7 @@ const R = {
     this.digits(Math.round(G.speed / MAX_SPEED * KMH), W - 64, H - 49, 36, 'right');
     this.raceLabel('speedUnit', W - 65, H - 39, 56, 25);
     if (G.state === 'race' || G.state === 'countdown' || G.state === 'shot') this.turboGauge(G);
+    if (G.state === 'countdown') this.text(Track.itinerary(), W / 2, 95, 15, '#ffe8ae', { align: 'center', maxWidth: W - 32 });
     if (G.state === 'race') {
       const remaining = G.checkpointNoticeUntil - G.elapsed;
       if (remaining > 0) {
@@ -588,7 +618,7 @@ const R = {
       const gate = trial.gates[G.trialGate], ahead = gate.seg * SEG - G.position - PLAYER_Z;
       if (!G.trialGate && ahead > TRIAL_APPROACH * SEG) return;
       const meters = Math.max(0, Math.ceil(ahead * KMH / (MAX_SPEED * 3.6) / 10) * 10);
-      title = tr('trial.' + trial.kind);
+      title = tr(trial.title);
       const distance = tr('unit.meters', { n: meters });
       if (trial.kind === 'slalom') {
         title += `   ${G.trialHits}/3`;
