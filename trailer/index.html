@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Midnight Monsters · trailer</title>
+<style>
+  body { margin: 16px; background: #0b0614; color: #e8dcff; font: 14px/1.45 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  #preview, video { display: block; width: min(854px, 100%); image-rendering: pixelated; background: #000; margin: 10px 0; }
+  #status { font-family: ui-monospace, monospace; white-space: pre-wrap; }
+  code { color: #ffe9a8; }
+  /* the game runs off-screen; the director draws into its own canvases */
+  #game { position: absolute; left: -10000px; top: 0; width: 640px; height: 480px; border: 0; }
+</style>
+</head>
+<body>
+<h1>Midnight Monsters · trailer</h1>
+<p>
+  <code>?run=1</code> capture toutes les images puis encode la vidéo ·
+  <code>?t=7.5</code> montre un instant ·
+  <code>?contact=1</code> planche d’un plan par temps.
+</p>
+<p id="status">Chargement du jeu…</p>
+<canvas id="preview" width="854" height="480"></canvas>
+<video id="result" controls hidden></video>
+<iframe id="game" src="../index.html?shot=0&amp;px=0" title="Midnight Monsters"></iframe>
+<script src="trailer.js"></script>
+</body>
+</html>
