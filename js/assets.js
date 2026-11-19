@@ -10,6 +10,7 @@ const A = {
   contactCache: new WeakMap(),
   flipped: {},    // name -> horizontally flipped copy (made lazily)
   bg: [],         // per zone {panorama, ground, road, pavement?}
+  finish: {},     // the common finish arena and its road surface
   ui: {},         // select screen images
   veh: {},        // vehicle id -> [16 frames]
   traffic: {},    // traffic id -> [left, rear, right]
@@ -49,6 +50,7 @@ const A = {
     const jobs = [], missing = [];
     const job = (path, set) => jobs.push(() => this.loadImage(path).then(set));
     for (const [name, def] of Object.entries(SPRITES)) job(def.file, i => (this.img[name] = i));
+    for (const [name, path] of Object.entries(FINISH_ART)) job(path, i => (this.finish[name] = i));
     BACKGROUNDS.forEach((b, z) => {
       this.bg[z] = {};
       for (const [key, path] of Object.entries(b)) job(path, i => (this.bg[z][key] = i));

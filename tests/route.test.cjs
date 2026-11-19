@@ -8,9 +8,9 @@ const { join } = require('node:path');
 const vm = require('node:vm');
 
 function loadGame() {
-  const scripts = ['util', 'worlds', 'sprites', 'track', 'online'];
+  const scripts = ['util', 'worlds', 'sprites', 'track', 'render', 'online'];
   const code = scripts.map(name => readFileSync(join(__dirname, '..', 'js', name + '.js'), 'utf8')).join('\n');
-  return vm.runInNewContext(code + '\n;({ Track, ZONES, RaceRoom, validRoute, mulberry32 })', { crypto: webcrypto });
+  return vm.runInNewContext(code + '\n;({ Track, ZONES, RaceRoom, validRoute, mulberry32, SEG, STEP, MAX_SPEED })', { crypto: webcrypto });
 }
 
 test('each world can occupy every slot, and a replay differs from the last race played', () => {
@@ -84,5 +84,44 @@ test('the host sends its ordered route and guests only start with a complete, va
   for (const route of [null, [], ['city', 'city', 'swamp', 'motel'], ['city', 'moon', 'swamp', 'motel'], ['city', , 'swamp', 'motel']]) {
     assert.equal(guest.validRoute(route), false);
     assert.equal(guest.RaceRoom.prototype.fromHost.call(rejected, { ...packet, route }), 'version');
+  }
+});
+
+test('all eight finishers roll to separate bays and stay there at rest, from a crawl to turbo speed', () => {
+  const { Track, ZONES, SEG, STEP, MAX_SPEED } = loadGame();
+  for (const last of ZONES) {
+    const route = ZONES.filter(world => world !== last).slice(0, 3).map(world => world.id);
+    Track.startRace([...route, last.id]);
+    const line = Track.finishSeg;
+    assert.ok(Track.segments[line + 50].halfWidth > Track.segments[line].halfWidth);
+    const cars = Array.from({ length: 8 }, (_, slot) => ({
+      gridSlot: slot, speed: slot / 7 * MAX_SPEED * 1.22, offset: slot % 2 ? -.8 : .8,
+      z: (line + slot / 8) * SEG,
+    }));
+    for (const car of cars) {
+      Track.find(car.z).cars.push(car);
+      Track.enterFinishArea(car, 100 + car.gridSlot);
+    }
+    for (let tick = 0; tick < 720; tick++) {
+      for (const car of cars) {
+        const previous = car.z;
+        Track.brakeIntoBay(car, STEP);
+        assert.ok(car.z >= previous && car.z <= car.arrival.bay.z);
+      }
+    }
+    const slots = new Set();
+    for (const car of cars) {
+      const { z, x } = Track.finishBay(car.gridSlot);
+      slots.add([z, x].join(','));
+      assert.ok(car.parked && z === car.z && Math.abs(x - car.offset) < 1e-10);
+      assert.equal(car.speed, 0);
+      assert.equal(car.turn, 0);
+      assert.equal(Track.find(z).cars.filter(c => c === car).length, 1);
+      Track.enterFinishArea(car, 888);
+      Track.brakeIntoBay(car, STEP);
+      assert.equal(car.finishedAt, 100 + car.gridSlot);
+      assert.equal(car.z, z);
+    }
+    assert.equal(slots.size, 8);
   }
 });

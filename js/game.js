@@ -71,7 +71,7 @@ const G = {
     this.rank = 8; this.stage = 0; this.shake = 0; this.msg = null; this.results = null;
     this.iceLeft = 0; this.slide = 0; this.caughtBySnow = false;
     this.hillOffset = 0.19;
-    this.frozen = false; this.finishedAt = 0; this.yawS = 0;
+    this.frozen = false; this.finishedAt = 0; this.finishCar = null; this.yawS = 0;
     this.bumpedCar = null;
     this.offCourse = false; this.offroadNoticeUntil = 0; this.checkpointNoticeUntil = 0;
     this.offroadMessage = ''; this.checkpointMessage = '';
@@ -88,7 +88,7 @@ const G = {
     Track.segments.forEach(s => (s.cars.length = 0));
     this.cars = rivalGrid(players, random).map((r, i) => {
       const car = {
-        name: r.name, vehicle: r.vehicle, w: A.vehicleWidth(r.vehicle), base: r.speed,
+        name: r.name, vehicle: r.vehicle, w: A.vehicleWidth(r.vehicle), base: r.speed, gridSlot: players.length + i,
         offset: (i % 2 ? 0.45 : -0.45) + (i % 3 === 2 ? 0.1 : 0),
         z: (17 + i * 5) * SEG, speed: 0, percent: 0, finished: false, launch: 0.6 + i * 0.12,
       };
@@ -135,12 +135,16 @@ const G = {
     }
   },
 
-  // Both types share the segment's depth/avoidance list. Only racers enter the standings.
-  moveCar(car, z) {
-    const old = Track.find(car.z), next = Track.find(z);
-    car.previousZ = car.z;
-    car.z = z; car.percent = U.percentRemaining(z, SEG);
-    if (old !== next) { old.cars.splice(old.cars.indexOf(car), 1); next.cars.push(car); }
+  updateArrival(dt) {
+    const car = this.finishCar;
+    if (!this.localCar && this.cars.some(other => !other.parked)) {
+      this.updateTraffic(dt);
+      this.updateCars(dt, Track.find(car.z), this.elapsed);
+    }
+    Track.brakeIntoBay(car, dt);
+    this.position = car.z - PLAYER_Z; this.playerX = car.offset; this.speed = car.speed;
+    this.frozen = car.parked; this.elapsed += dt;
+    if (!this.localCar) this.audio?.engine(car.speed / MAX_SPEED, !car.parked, false);
   },
 
   useTurbo() {
@@ -236,6 +240,7 @@ const G = {
 
   // ------------------------------------------------------------- update ---
   update(dt, potionClaims) {
+    if (this.state === 'finish') { this.updateArrival(dt); return; }
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.5);
     if (this.msg) { this.msg.t += dt; if (this.msg.t > this.msg.life) this.msg = null; }
 
@@ -251,7 +256,7 @@ const G = {
       this.audio?.engine(0.05 + (this.keys.up ? 0.25 : 0), true, false);
       return;
     }
-    if (this.state !== 'race' && this.state !== 'finish' && this.state !== 'over') return;
+    if (this.state !== 'race' && this.state !== 'over') return;
 
     const playerSeg = Track.find(this.position + PLAYER_Z);
     this.playerW = this.playerWorldWidth / playerSeg.halfWidth;
@@ -260,7 +265,7 @@ const G = {
     const startPos = this.position, startX = this.playerX;
     const driving = this.state === 'race';
 
-    // inputs (autopilot when finished / over / ?auto)
+    // Inputs for a live driver, the demo, or the game-over coast.
     const controls = driving && !this.auto ? this.keys : this.autoControls(playerSeg, driving);
     const { left, right, up, down } = controls;
     if (!this.localCar) {
@@ -380,9 +385,14 @@ const G = {
       this.state = 'finish';
       this.turboLeft = 0;
       const stepDistance = this.position - startPos;
-      this.finishedAt = this.elapsed - (this.localCar && stepDistance > 0 ? dt * U.limit((pz - Track.finishSeg * SEG) / stepDistance, 0, 1) : 0);
+      this.finishedAt = this.elapsed - (stepDistance > 0 ? dt * U.limit((pz - Track.finishSeg * SEG) / stepDistance, 0, 1) : 0);
+      const car = this.finishCar = this.localCar || { vehicle: this.vehicle, gridSlot: 0, w: this.playerWorldWidth, z: pz };
+      if (!this.localCar) Track.find(pz).cars.push(car);
+      Track.moveCar(car, pz);
+      car.offset = this.playerX; car.speed = this.speed;
+      Track.enterFinishArea(car, this.finishedAt);
       this.audio?.finish();
-      const order = this.cars.filter(c => c.finished).length;
+      const order = this.cars.filter(c => c.finished && c.finishedAt <= this.finishedAt).length;
       this.results = { rank: order + 1, time: this.finishedAt };
       this.rank = order + 1;
       return;
@@ -479,10 +489,11 @@ const G = {
       }
       car.speed = Math.min(target, car.speed + MAX_SPEED * 0.12 * dt);
       const z = car.z + car.speed * dt;
-      if (z >= (Track.finishSeg + DRAW_DIST) * SEG) {
+      if (seg.index >= Track.finishSeg - 24) car.offset = U.lerp(car.offset, 1.32, Math.min(1, 2 * dt));
+      if (z >= Track.finishSeg * SEG) {
         seg.cars.splice(seg.cars.indexOf(car), 1);
         this.traffic.splice(j, 1);
-      } else this.moveCar(car, z);
+      } else Track.moveCar(car, z);
     }
   },
 
@@ -541,15 +552,15 @@ const G = {
     const pz = this.position + PLAYER_Z;
     if (Track.avalanche?.started === null) Track.advanceAvalanche(Math.max(pz, ...this.cars.map(car => car.z)), elapsed);
     for (const car of this.cars) {
+      if (car.finished) { Track.brakeIntoBay(car, dt); continue; }
       const old = Track.find(car.z);
-      // speed: launch delay, rubber band, finish
+      // Racing speed follows the launch delay, the field and the bend.
       let target = car.base * MAX_SPEED;
       const gap = (car.z - pz) / SEG;
       if (gap > 160) target *= 0.84;
       else if (gap > 80) target *= 0.93;
       else if (gap < -60) target *= 1.06;
       target = Math.min(target, MAX_SPEED * 0.95) * (1 - Math.min(0.08, Math.abs(old.curve) * 0.012));
-      if (car.finished) target = Math.max(0, car.speed - MAX_SPEED * dt * 0.4);
       if (car.launch > 0) { car.launch -= dt; target = 0; }
       car.speed += (target - car.speed) * Math.min(1, dt * 0.55);
       const prevOffset = car.offset;
@@ -558,11 +569,11 @@ const G = {
       car.turn = (car.offset - prevOffset) / dt;
       const destination = Math.min(car.z + dt * car.speed, Track.length - (DRAW_DIST + 20) * SEG);
       if (Track.hazardContact(car.z, destination, prevOffset, car.offset, car.w, elapsed, dt)) car.speed *= .64;
-      this.moveCar(car, destination);
+      Track.moveCar(car, destination);
       car.bounce = (Math.random() - 0.5) * (car.speed / MAX_SPEED) * 1.2;
-      if (!car.finished && car.z >= Track.finishSeg * SEG) {
-        car.finished = true;
-        car.finishedAt = elapsed + (Track.finishSeg * SEG - car.previousZ) / car.speed;
+      if (car.z >= Track.finishSeg * SEG) {
+        const fraction = U.limit((Track.finishSeg * SEG - car.previousZ) / (car.z - car.previousZ || 1), 0, 1);
+        Track.enterFinishArea(car, elapsed + fraction * dt);
       }
     }
   },
@@ -614,7 +625,7 @@ const G = {
 };
 
 // ------------------------------------------------------------------ input ---
-const resultsScreen = () => G.state === 'finish' || G.state === 'over';
+const resultsScreen = () => G.state === 'over' || (G.state === 'finish' && G.finishCar.parked);
 addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (G.state === 'title') { Home.keydown(e); return; }
@@ -727,27 +738,31 @@ for (const event of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) addE
 // --------------------------------------------------------------- screens ---
 function drawScreens() {
   if (G.state === 'loading' || G.state === 'title') return;
+  if (G.state === 'finish') { R.finishHud(G, true); return; }
   R.hud(G);
   if (G.state === 'countdown') {
     const n = Math.ceil(G.countdown);
     if (n <= 3) R.banner(String(n), tr('race.ready'), 1 - (G.countdown % 1));
   }
   if (G.msg) R.banner(G.msg.text, G.msg.sub, G.msg.t);
-  if (G.state === 'finish' && G.results) {
-    R.overlay(0.35);
-    const r = G.results;
-    R.text(tr('result.finish'), W / 2, 150, 60, R.yellow(150, 60), { align: 'center' });
-    R.text(tr('result.place', { rank: r.rank, total: G.cars.length + 1 }), W / 2, 210, 34, '#ffffff', { align: 'center' });
-    R.text(tr('result.time', { time: I18n.seconds(r.time, 2) }), W / 2, 250, 26, R.yellow(250, 26), { align: 'center' });
-    R.text(tr('result.summary', { won: G.trialsWon, total: Track.trials.length, passes: G.nearMisses }), W / 2, 284, 18, '#91ffdf', { align: 'center' });
-    if (Math.floor(performance.now() / 500) % 2) R.text(tr('result.continue'), W / 2, 325, 26, R.yellow(325, 26), { align: 'center' });
-  }
   if (G.state === 'over' && G.results) {
     R.overlay(0.45);
     R.text(G.results.text, W / 2, 180, 56, R.yellow(180, 56), { align: 'center' });
     R.text(G.results.sub, W / 2, 222, 20, '#ffffff', { align: 'center' });
     if (Math.floor(performance.now() / 500) % 2) R.text(tr('result.continue'), W / 2, 320, 26, R.yellow(320, 26), { align: 'center' });
   }
+}
+
+// A short, playable approach to the actual line for checking the finish camera.
+function previewFinish() {
+  G.reset(false, mulberry32(93));
+  G.auto = true; G.state = 'race'; G.stage = STAGE_COUNT - 1;
+  G.trialIndex = Track.trials.length; G.elapsed = 116; G.time = 26; G.dawn = 49;
+  G.position = (Track.finishSeg - 84) * SEG - PLAYER_Z; G.speed = G.topSpeed * .88;
+  G.cars.forEach((car, i) => {
+    Track.moveCar(car, (Track.finishSeg - 30 - 17 * i) * SEG);
+    car.speed = car.base * MAX_SPEED; car.launch = 0;
+  });
 }
 
 // -------------------------------------------- reference "screenshot" mode ---
@@ -944,6 +959,7 @@ fit();
   if (params.has('sheet')) { drawSheet(); return; }
   if (params.has('compare')) { openComparison(); return; }
   if (params.has('shot')) setupShot(U.limit(Math.trunc(Number(params.get('shot'))) || 0, 0, SHOTS.length - 1));
+  else if (params.has('finish')) previewFinish();
   else if (G.auto) G.start();
   else if (params.has('select')) { Select.open(G.vehicle); G.state = 'select'; }
   else {

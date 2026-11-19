@@ -140,7 +140,7 @@ const Local = {
   // Both multiplayer modes advance the same eight-car field at a fixed time step.
   resetRace(rides, route, random = Math.random, ownSeat = null) {
     Track.startRace(route);
-    this.done = false; this.countdown = 3.2; this.elapsed = 0;
+    this.done = false; this.countdown = 3.2; this.elapsed = 0; this.parkedFor = 0;
     this.views = []; this.board = null; this.boardTick = -1;
     this.drivers = rides.map((vehicle, i) => {
       const driver = Object.create(G);
@@ -157,7 +157,7 @@ const Local = {
       driver.cars = field.cars; driver.traffic = field.traffic;
       driver.collectedPotions = field.collectedPotions;
       const z = driver.position + PLAYER_Z;
-      const car = { driver, seat: i, vehicle: driver.vehicle, w: driver.playerWorldWidth, offset: driver.playerX,
+      const car = { driver, seat: i, gridSlot: i, vehicle: driver.vehicle, w: driver.playerWorldWidth, offset: driver.playerX,
         speed: 0, z, previousZ: z, percent: U.percentRemaining(z, SEG) };
       driver.localCar = car;
       Track.find(z).cars.push(car);
@@ -186,17 +186,19 @@ const Local = {
       return;
     }
     const racing = this.drivers.filter(driver => driver.state === 'race');
-    if (!racing.length) { this.done = true; return; }
+    const finishers = this.drivers.filter(driver => driver.state === 'finish');
+    if (!racing.length && !finishers.length) { this.done = true; Sound.engine(0, false, false); return; }
     // Advance the shared field once. All human drivers see the same motion for this tick.
-    const front = racing.reduce((a, b) => a.position > b.position ? a : b);
+    const front = (racing.length ? racing : finishers).reduce((a, b) => a.position > b.position ? a : b);
     front.updateTraffic(dt);
     front.updateCars(dt, Track.find(front.position + PLAYER_Z), this.elapsed);
+    for (const driver of finishers) driver.updateArrival(dt);
     for (const driver of racing) {
       const car = driver.localCar;
       driver.keys = controls(car.seat);
       if (driver.keys.boost) driver.useTurbo();
       car.speed = driver.speed;
-      driver.moveCar(car, driver.position + PLAYER_Z + driver.speed * dt);
+      Track.moveCar(car, driver.position + PLAYER_Z + driver.speed * dt);
     }
     const claims = [];
     for (const driver of racing) driver.update(dt, claims);
@@ -204,22 +206,22 @@ const Local = {
     for (const {driver, potion} of claims.sort((a, b) => a.at - b.at)) driver.takePotion(potion);
     for (const driver of racing) {
       const car = driver.localCar;
-      driver.moveCar(car, driver.position + PLAYER_Z);
+      Track.moveCar(car, driver.position + PLAYER_Z);
       car.turn = (driver.playerX - car.offset) / dt;
       car.offset = driver.playerX; car.speed = driver.speed;
-      if (driver.state !== 'race') {
-        car.finished = driver.state === 'finish'; car.finishedAt = driver.finishedAt;
-        this.parkDriver(driver);
-      }
+      if (driver.state === 'over') this.retireDriver(driver);
     }
     this.elapsed += dt;
     this.rankField();
-    this.done = this.drivers.every(driver => driver.state !== 'race');
-    const engine = listener ?? racing.reduce((a, b) => a.speed > b.speed ? a : b);
-    Sound.engine(engine.speed / MAX_SPEED, !this.done, Math.abs(engine.playerX) > 1 && engine.speed > 500);
+    // Leave the arena on screen as the last rival takes its place.
+    if (this.entries.every(car => car.parked || car.driver?.state === 'over')) this.parkedFor += dt;
+    this.done = this.parkedFor >= 2.5;
+    const engine = listener ?? this.drivers.reduce((a, b) => a.speed > b.speed ? a : b);
+    Sound.engine(engine.speed / MAX_SPEED, engine.state === 'race' || (engine.state === 'finish' && !engine.frozen),
+      Math.abs(engine.playerX) > 1 && engine.speed > 500);
   },
 
-  parkDriver(driver) {
+  retireDriver(driver) {
     driver.frozen = true; driver.speed = 0;
     const car = driver.localCar;
     car.speed = 0;
@@ -315,11 +317,25 @@ const Local = {
 
   draw() {
     if (this.done) return;
-    for (const {driver, renderer, hud} of this.views) {
+    if (!this.countdown && this.drivers.every(d => d.state !== 'race')) {
+      const view = this.views.find(v => v.driver.state === 'finish');
+      if (view) {
+        if (!view.pane.classList.contains('shared-finish')) {
+          view.pane.classList.add('shared-finish');
+          this.resizeViews();
+        }
+        view.renderer.frame(view.driver);
+        setText(view.hud.call, tr('result.finish'));
+        return;
+      }
+    }
+    for (const {driver, renderer, hud, pane} of this.views) {
+      const finished = driver.state === 'finish';
+      pane.toggleAttribute('data-finished', finished);
       renderer.frame(driver);
       if (driver.state === 'race') renderer.trialPanel(driver);
       setText(hud.rank, tr('hud.pos') + ' ' + driver.rank + '/8');
-      setText(hud.clock, tr('hud.time') + ' ' + driver.clockSeconds);
+      setText(hud.clock, finished ? tr('result.time', { time: I18n.seconds(driver.finishedAt, 2) }) : tr('hud.time') + ' ' + driver.clockSeconds);
       setText(hud.speed, Math.round(driver.speed * KMH / MAX_SPEED) + ' ' + tr('hud.speedUnit'));
       setText(hud.charge, `${driver.charge}/${TURBO_CAPACITY}`);
       const device = this.devices[driver.localCar.seat];

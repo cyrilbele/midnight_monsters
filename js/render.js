@@ -36,6 +36,7 @@ const R = {
   frame(G) {
     const ctx = this.ctx;
     ctx.imageSmoothingEnabled = false;
+    if (G.state === 'finish') { this.finishArea(G); return; }
     const baseSeg = Track.find(G.position);
     const basePercent = U.percentRemaining(G.position, SEG);
     const playerSeg = Track.find(G.position + PLAYER_Z);
@@ -163,7 +164,7 @@ const R = {
     const fog = this.fogCache[zone.id], fogK = zone.fogK || 1;
     const iz1 = 1 / seg.p1.camera.z, iz2 = 1 / seg.p2.camera.z, dy = y1 - y2;
     const fogMax = DRAW_DIST * SEG;
-    const bg = A.bg[seg.zone], surface = bg[seg.surface || 'road'];
+    const bg = A.bg[seg.zone], surface = seg.finishApron ? A.finish.paving : bg[seg.surface || 'road'];
     const bridge = !!seg.textureSpan, tunnel = seg.surface === 'temple' || seg.surface === 'bore';
     const ground = bridge ? bg.ravineGround : tunnel ? surface : bg.ground;
     const period = zone.tileSegments * SEG;
@@ -209,6 +210,11 @@ const R = {
       const texY = bridge ? 1 - (wz / SEG - seg.textureSpan.from) / seg.textureSpan.length : phase < 1 ? phase : 2 - phase;
       const tr = U.limit(Math.floor(texY * road.height), 0, road.height - 1);
       ctx.drawImage(road, 0, tr, road.width, 1, xc - edge, y, edge * 2, step);
+      if (seg.index === Track.finishSeg - 1 || seg.index === Track.finishSeg - 2) {
+        const stripe = A.finish.stripe;
+        const across = U.limit((Track.finishSeg - wz / SEG) / 2, 0, 1);
+        ctx.drawImage(stripe, 0, Math.round((stripe.height - 1) * across), stripe.width, 1, xc - w, y, 2 * w, step);
+      }
       // distance haze
       const f = zc / fogMax;
       if (f > 0.16 / fogK) {
@@ -476,6 +482,40 @@ const R = {
         const px = this.width / 2 + (Math.random() - 0.5) * 200, py = y - Math.random() * 20;
         ctx.fillRect(px, py, 6 + Math.random() * 10, 4 + Math.random() * 6);
       }
+    }
+  },
+
+  // The finish camera looks across the timing line. Every car here is drawn
+  // from its live position, including late arrivals and cars at rest.
+  finishArea(driver) {
+    const ctx = this.ctx, art = A.finish.arena;
+    const scale = Math.min(this.width / W, 1);
+    ctx.save();
+    ctx.fillStyle = '#120b1d'; ctx.fillRect(0, 0, this.width, H);
+    ctx.translate((this.width - W * scale) / 2, (H - H * scale) / 2);
+    ctx.scale(scale, scale);
+    ctx.drawImage(art, 0, 0, W, H);
+    const field = driver.localCar ? Local.entries : [...driver.cars, driver.finishCar];
+    const finishers = field.filter(car => car.finished).sort((a, b) => b.z - a.z);
+    for (const car of finishers) {
+      const depth = car.z / SEG - Track.finishSeg;
+      const perspective = 1 / (1 + depth / 78), pixels = .19 * perspective;
+      const x = W / 2 + car.offset * Track.find(car.z).halfWidth * .127 * perspective;
+      const y = 160 + 365 * perspective;
+      this.vehicle(car.vehicle, car.pose || 0, pixels / (W / 2), x, y, 0, 1);
+      if (car.driver) this.text(seatName(car.seat), x, y + 12, 12, SEAT_COLORS[car.seat], { align: 'center', lw: 2 });
+    }
+    ctx.restore();
+  },
+
+  finishHud(driver, solo) {
+    this.text(tr('result.finish'), 12, 29, 25, this.yellow(29, 25));
+    this.text(tr('result.place', { rank: driver.rank, total: 8 }), W / 2, 25, 17, '#ffe9a8', { align: 'center' });
+    this.text(tr('result.time', { time: I18n.seconds(driver.finishedAt, 2) }), W - 12, 25, 17, '#fff0d4', { align: 'right' });
+    if (solo && driver.finishCar.parked) {
+      this.text(tr('result.summary', { won: driver.trialsWon, total: Track.trials.length, passes: driver.nearMisses }),
+        12, H - 12, 14, '#9ff5db', { maxWidth: W * .57 });
+      this.text(tr('result.continue'), W - 12, H - 12, 15, '#ffe9a8', { align: 'right', maxWidth: W * .37 });
     }
   },
 

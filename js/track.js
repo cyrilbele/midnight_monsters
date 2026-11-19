@@ -1,6 +1,7 @@
 'use strict';
 
 const STAGE_COUNT = 4;
+const FINISH_HALF_WIDTH = 3300;
 const WORLD_IDS = ZONES.map(zone => zone.id);
 const BODY_BAND = [[0, .80]];
 function validRoute(route) {
@@ -110,7 +111,82 @@ const Track = {
       const arch = i && ['swamp', 'carnival', 'cemetery'].includes(id) ? 'arch_' + id : 'arch_start';
       this.add(start + (i ? 0 : 15), arch, 0, { sign: 'zone.' + id, start: i === 0 });
     });
-    this.add(this.finishSeg, 'arch_finish', 0);
+    this.placeFinish();
+  },
+
+  // The final world's road opens onto a level corral. Its back rail describes
+  // a semicircle beyond both rows of parking bays, leaving the entrance open.
+  placeFinish() {
+    const line = this.finishSeg, entry = this.segments[line];
+    const ground = entry.p1.world.y, width = entry.halfWidth;
+    for (let i = line - 22; i < this.segments.length; i++) {
+      const seg = this.segments[i];
+      if (i < line) {
+        // Clear the banks for spectators; a race object on the approach remains playable.
+        seg.sprites = seg.sprites.filter(sp => sp.obstacle || ['trial_lantern', 'speed_camera', 'turbo_potion', 'press_gantry'].includes(sp.name));
+        continue;
+      }
+      seg.sprites.length = 0;
+      if (seg.hazards) seg.hazards.length = 0;
+      seg.curve = 0;
+      seg.p1.world.y = seg.p2.world.y = ground;
+      seg.halfWidth = U.easeInOut(width, FINISH_HALF_WIDTH, Math.min(1, (i - line) / 36));
+      seg.finishApron = true;
+    }
+    this.add(line, 'arch_finish', 0);
+    const crowds = ['fans_classic', 'fans_howl', 'fans_folklore'];
+    for (const [i, distance] of [-21, -10, 3, 17, 34, 53, 72, 88].entries()) {
+      const seg = this.segments[line + distance], outside = 1.04 + SPRITES.fans_classic.w / (2 * seg.halfWidth);
+      this.add(seg.index, crowds[i % 3], -outside, { flip: true });
+      this.add(seg.index, crowds[(i + 1) % 3], outside);
+    }
+    for (let i = -4; i <= 4; i++) {
+      const angle = i * Math.PI / 8;
+      this.add(line + 94 + Math.round(26 * Math.cos(angle)), crowds[(i + 4) % 3], 1.24 * Math.sin(angle), { flip: i < 0 });
+    }
+  },
+
+  finishBay(slot) {
+    const back = slot < 4, column = slot % 4;
+    return { z: (this.finishSeg + (back ? 94 : 55)) * SEG, x: (column - 1.5) * .43 + (back ? .04 : -.04) };
+  },
+
+  moveCar(car, z) {
+    const old = this.find(car.z), next = this.find(z);
+    car.previousZ = car.z;
+    car.z = z; car.percent = U.percentRemaining(z, SEG);
+    if (old !== next) {
+      const at = old.cars.indexOf(car);
+      if (at >= 0) old.cars.splice(at, 1);
+      next.cars.push(car);
+    }
+  },
+
+  enterFinishArea(car, crossingTime) {
+    if (car.finished) return;
+    const bay = this.finishBay(car.gridSlot);
+    car.finished = true; car.finishedAt = crossingTime;
+    car.arrival = { bay, fromZ: car.z, fromX: car.offset,
+      braking: Math.max(car.speed, MAX_SPEED * .45) ** 2 / (2 * (bay.z - car.z)) };
+    car.parked = false; car.bounce = 0;
+  },
+
+  brakeIntoBay(car, dt) {
+    if (car.parked) return;
+    const { bay, fromZ, fromX, braking } = car.arrival;
+    const left = bay.z - car.z;
+    // The stopping speed v² = 2ad keeps a fast finisher inside its bay.
+    // A slower one can pull clear of the timing line before braking.
+    const speed = Math.min(car.speed + MAX_SPEED * .35 * dt, Math.sqrt(2 * braking * left));
+    const z = Math.min(bay.z, car.z + dt * speed);
+    const t = (z - fromZ) / (bay.z - fromZ);
+    const x = U.lerp(fromX, bay.x, t * t * (3 - 2 * t));
+    car.turn = (x - car.offset) / dt; car.offset = x;
+    car.pose = Math.round(U.lerp(U.limit(car.turn * 3, -2, 2), bay.x * 3, t));
+    this.moveCar(car, z);
+    car.parked = z === bay.z;
+    car.speed = car.parked ? 0 : speed;
+    if (car.parked) car.turn = 0;
   },
 
   add(n, name, offset, opts = {}) {

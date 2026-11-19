@@ -118,9 +118,16 @@ const SPRITES = {
   arch_carnival: { file: 'track/arch/arch_carnival.png', w: 6200, center: true, sign: 'zone.carnival' },
   arch_cemetery: { file: 'track/arch/arch_cemetery.png', w: 6200, center: true, sign: 'zone.cemetery' },
   arch_finish: { file: 'track/arch/arch_finish.png', w: 6200, center: true, sign: 'sign.finish' },
+  fans_classic: { file: 'track/finish/fans_classic.png', w: 1450, center: true },
+  fans_howl: { file: 'track/finish/fans_howl.png', w: 1450, center: true },
+  fans_folklore: { file: 'track/finish/fans_folklore.png', w: 1450, center: true },
   trial_lantern: { file: 'track/trial_lantern.png', w: 230, center: true },
   speed_camera: { file: 'track/speed_camera.png', w: 420, center: true },
   turbo_potion: { file: 'track/turbo_potion.png', w: 320, center: true },
+};
+
+const FINISH_ART = {
+  arena: 'track/finish/arena.png', paving: 'track/finish/paving.png', stripe: 'track/finish/stripe.png',
 };
 
 // Each road is one overhead painting, repeated along the direction of travel.

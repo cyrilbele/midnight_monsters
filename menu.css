@@ -203,6 +203,18 @@
 .split-call { top: 31%; left: 4%; right: 4%; color: #ffdc57; font: italic 900 clamp(22px, 12cqh, 62px)/1 Arial, sans-serif; }
 .split-notice { right: 2%; top: 15%; padding: 2px 5px; max-width: 74%; background: #190c26dd; color: #b2ffda; font: bold clamp(10px, 3.8cqh, 17px)/1.2 Arial, sans-serif; }
 .split-notice:empty { display: none; }
+.race-view[data-finished] .split-turbo, .race-view[data-finished] .split-notice { display: none; }
+.race-view[data-finished] .split-call {
+  inset: auto auto 3% 2%; padding: .24em .42em; background: #180b23e8;
+  font: italic 900 clamp(12px, 5.3cqh, 24px)/1 Arial, sans-serif;
+}
+.race-view[data-finished] .split-bottom { justify-content: flex-end; }
+.race-view.shared-finish { grid-area: 1 / 1 / -1 / -1; }
+#split-race:has(> .shared-finish) > :not(.shared-finish),
+.shared-finish .split-top, .shared-finish .split-bottom, .shared-finish .split-notice { display: none; }
+.race-view.shared-finish .split-call {
+  inset: 3% auto auto 2%; font: italic 900 clamp(18px, 5.5cqh, 36px)/1 Arial, sans-serif;
+}
 .standings {
   min-width: 0; min-height: 0; overflow: hidden; display: grid; place-items: center;
   container-type: size; background: #18091f;

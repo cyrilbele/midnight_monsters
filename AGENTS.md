@@ -24,7 +24,7 @@ L’accueil dessine son illustration à la résolution du jeu dans `Home.drawSce
 
 Chaque départ tire quatre univers distincts et leur ordre. Le décompte affiche cet itinéraire. En solo et en écran partagé, le navigateur fait un seul tirage pour toute la grille. En ligne, l’hôte envoie les quatre identifiants dans le message `start.route`, avec la grille et la graine de simulation. Chaque invité valide la liste et construit ce parcours avant le premier pas de course.
 
-Après une modification du tracé ou du protocole de départ, lancer `node --test tests/route.test.cjs` depuis la racine. Les tests vérifient le tirage, la position des épreuves et de l’arrivée, et la transmission de l’itinéraire aux invités.
+Après une modification du tracé ou du protocole de départ, lancer `node --test tests/route.test.cjs` depuis la racine. Les tests vérifient le tirage, la position des épreuves, la transmission de l’itinéraire aux invités et l’arrêt des huit bolides après la ligne.
 
 | Univers | Passage à reconnaître |
 | --- | --- |
@@ -299,7 +299,9 @@ Dans chaque segment, `zone` identifie son univers dans `ZONES` et `stage` sa pla
 
 À chaque départ, `rivalGrid()` réserve les véhicules choisis par les joueurs puis tire les adversaires pour former une grille de huit pilotes distincts. Les huit pilotes hors grille font chacun une apparition dans le trafic lent, aux côtés de Frankenstein, Freddy et la Créature du lagon. Leur largeur et leurs vues de braquage proviennent du garage. Leur vitesse de croisière vaut 80 km/h plus 8 km/h par point de vitesse.
 
-En multijoueur, `Local.advanceRace()` avance le trafic et les adversaires une fois par pas de simulation. Chaque humain utilise la conduite de `G.update()`, avec son propre chrono, ses épreuves et son turbo. Une fiole ramassée disparaît pour tous. Les joueurs arrivés ou éliminés attendent les autres. Le classement départage les arrivées dans le même pas à partir de l’instant du franchissement de la ligne.
+En multijoueur, `Local.advanceRace()` avance le trafic et les adversaires une fois par pas de simulation. Chaque humain utilise la conduite de `G.update()`, avec son propre chrono, ses épreuves et son turbo. Une fiole ramassée disparaît pour tous. Le classement départage les arrivées dans le même pas à partir de l’instant du franchissement de la ligne.
+
+Les huit bolides disposent chacun d’une place dans l’aire d’arrivée. `Track.placeFinish()` élargit la dernière chaussée et place les supporters en demi-cercle. `Track.finishBay()` fixe les deux rangées de stationnement. Après le damier, `Track.brakeIntoBay()` conduit les humains et les concurrents jusqu’à l’arrêt. La caméra `R.finishArea()` affiche leurs positions réelles. Le temps et le rang sont pris sur la ligne. En écran partagé, une vue commune montre l’arène dès que le dernier humain a terminé. En multijoueur, le classement final apparaît après le stationnement des arrivants. [Dessins et consignes de l’arène](tools/sheets/world-art.md#aire-darrivée)
 
 En ligne, PeerJS Cloud met les navigateurs en relation. Si les deux réseaux bloquent la connexion directe, WebRTC a besoin d’un relais TURN joignable. L’hôte attribue les places, transmet l’itinéraire ordonné et la graine de la grille, puis valide les commandes de chaque pas de course. Les invités rejouent ces pas dans l’ordre et affichent le classement final envoyé par l’hôte. La bibliothèque PeerJS se charge à l’ouverture d’une connexion. Lors d’un changement incompatible des messages ou des règles de simulation, incrémenter `ROOM_VERSION` dans `js/online.js` et actualiser les versions des scripts concernés dans `index.html`. [FAQ PeerJS](https://peerjs.com/client/faq)
 
@@ -326,6 +328,7 @@ Draw a single collectible sprite for Midnight Monsters, a 1990s pixel-art monste
 
 | À contrôler | Vue locale |
 | --- | --- |
+| Le damier, les tribunes et le freinage des huit bolides | [Dernière ligne droite en pilotage automatique](http://localhost:8642/?finish=1) |
 | Un salon en ligne | [Créer le salon](http://localhost:8642/?online=1) · choisir trois places, suivre l’invitation dans deux autres fenêtres puis vérifier le bouton de départ chez l’hôte, le vocal, le turbo et le classement. Pour jouer sur plusieurs appareils, partager le lien issu de GitHub Pages. |
 | Les dessins et les vues des pilotes, par pages de 30 | [Galerie](http://localhost:8642/?sheet=1) · changer la valeur de `sheet` pour avancer |
 | La composition des huit univers | [Les quatre d’origine](http://localhost:8642/?compare=1) · [Les quatre nouveaux](http://localhost:8642/?compare=2) · cliquer sur une scène pour l’agrandir |

@@ -1,4 +1,4 @@
-# Illustrations des quatre univers
+# Illustrations des quatre univers et de l’arrivée
 
 Ces dessins ont été réalisés avec ImageGen intégré. Les panoramas et les matériaux proviennent de planches opaques. Les objets et la main du yéti ont été dessinés sur fond transparent. Les PNG livrés sont recadrés et indexés pour le jeu. Le rendu utilise directement ces fichiers.
 
@@ -113,4 +113,22 @@ Dramatic chunky pixel art, crisp 1990s SNES aesthetic.
 Transparent EMPTY space around the silhouette, very narrow margins, no cliffs, trees, ground, backdrop, roads, words, vehicle, markings, extra paws or other objects.
 The forward-moving car goes from wrist at bottom to fingers at top.
 Make it instantly recognizable as a giant five-digit palm.
+```
+
+## Aire d’arrivée
+
+ImageGen intégré a dessiné l’arène en 4:3 et les trois rangées de supporters sur fond transparent. Le sol et le damier proviennent de l’illustration de l’arène. Les bolides affichés par la caméra d’arrivée utilisent les planches des pilotes de la course. [PNG de l’arrivée](../../sprites/track/finish)
+
+### Arène
+
+```text
+Use case: stylized-concept.
+A finished in-game background painting for the finish corral of Midnight Monsters, a 1990s pixel-art arcade monster racer. Landscape 4:3 screen, a raised camera behind the arriving racers looks forward and down into a huge horseshoe-shaped finish enclosure like a World Cup ski finish stadium at dusk. Make the U unmistakable: a continuous dense grandstand curves from the close lower left edge, around the far end at center, and back towards the close lower right edge. Three rows of distinct CHEERING whimsical horror fans: vampires, waving skeletons, bandaged mummies, pumpkin heads, werewolves, witches, Frankenstein monsters, hopping jiangshi, kappa, ghosts and yetis; striped scarves, tiny purple pennants, a few chequered flags, hands up. Beautiful expressive faces in the first rows, dark plum outlines and crowd silhouettes behind. Purple-and-gold crash barriers follow the horseshoe. Cool purple dusk, magenta stadium floodlights, warm amber lamps, four flagpoles and a little purple bunting. Far stands and sky occupy the upper 36% of the screen; at either outer edge the arms of the crowd curve down to roughly 68% screen height. In the middle 80% of the width below the stands leave a large open FLAT charcoal-violet paved apron with only subtle cobbled texture and tyre wear, wide enough to superimpose 8 live vehicles in two rows. The opening is at the foreground bottom center. Discreet black and ivory chequered finish stripe extremely low along foreground entrance. Draw NO vehicles, no racers, no podium, no text or lettering, no numbers, no HUD, no logos. Full-bleed 4:3 artwork. Crisp hand-pixeled 16-bit game screen with broad, tightly clustered pixels, strong silhouettes, limited violet/amber/teal palette; neither smooth 3D nor an illustrated poster. Joyful, ghoulish crowd ringing a dark clear parking apron.
+```
+
+### Spectateurs des barrières
+
+```text
+Use case: stylized-concept.
+Production transparent sprite atlas for the spectator barriers of Midnight Monsters, a crisp 16-bit horror-comedy arcade racer. A square image containing THREE separate very wide HORIZONTAL STRIPS stacked vertically in three equal rows. Each strip is ONE isolated, dense, complete crowd section facing the viewer, teeth and faces visible, behind a waist-high violet-and-gold rally barrier with a small band of black-and-ivory racing chequers. Each strip has roughly 12 different lively monsters shoulder to shoulder, some arms raised, with one small pennant or flag. First strip friendly vampires, skeletons, green Frankensteins, witches and a ghost; second strip pumpkin-head fans, skeletons, bandaged mummies and cheering werewolves; third strip folk monsters: horned oni, jiangshi with yellow hats, kappa, blue yeti and tiny goblins. Silhouettes are varied; hand-painted chunky arcade pixels, thick dark plum outlines and crisp amber, magenta, mint highlights readable at tiny sprite size. Use orthographic front elevation just above rail height; three separate straight sections with the bottoms of the rail posts aligned within each row. Wide transparent margins separating all three rows and around each whole section. True transparent canvas outside the drawings, no ground, no backdrop or sky, no road, no vehicles, no typography, no sheet markings, no shading outside silhouette. Each strip must be roughly four times wider than it is tall and self-contained.
 ```

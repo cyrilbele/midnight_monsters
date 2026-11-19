@@ -2,7 +2,7 @@
 
 // Each guest sends its controls to the host. Everyone advances the same seeded field
 // from the host's ordered 60 Hz inputs, sent two steps at a time over WebRTC.
-const ROOM_VERSION = 4;
+const ROOM_VERSION = 5;
 const ROOM_ID = /^mm-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const BOOST_BIT = 1 << 16;
 const IDLE_INPUT = 100;
@@ -319,7 +319,7 @@ class RaceRoom {
       const driver = Local.drivers[seat];
       if (bits === -1 && (driver.state === 'race' || driver.state === 'countdown')) {
         driver.state = 'over'; driver.results = { text: tr('multi.dnf') };
-        Local.parkDriver(driver);
+        Local.retireDriver(driver);
       }
     });
     Local.advanceRace(STEP, seat => unpackInput(frame[seat]), Local.drivers[this.seat]);
@@ -521,15 +521,17 @@ const Online = {
   draw() {
     const s = this.session;
     if (!s || s.phase !== 'race') return;
-    const own = Local.drivers[s.seat], watching = own.state === 'finish' || own.state === 'over';
-    const driver = watching ? Local.entries.find(car => car.driver?.state === 'race')?.driver || own : own;
+    const own = Local.drivers[s.seat];
+    const driver = own.state === 'over' ? Local.entries.find(car => car.driver?.state === 'race')?.driver ||
+      Local.drivers.find(d => d.state === 'finish') || own : own;
     R.frame(driver);
     if (G.pixel) R.pixelate();
-    R.hud(driver);
+    if (driver.state === 'finish') R.finishHud(driver, false);
+    else R.hud(driver);
     const count = Math.ceil(Local.countdown);
     if (count > 0 && count <= 3) R.banner(String(count), tr('race.ready'), 1 - Local.countdown % 1);
     else if (!Local.countdown && Local.elapsed < .75) R.banner(tr('race.go'), '', Local.elapsed);
-    if (watching) R.text(tr('online.spectating', { result: tr(own.state === 'finish' ? 'result.finish' : 'multi.dnf'), player: seatName(driver.localCar.seat) }),
+    if (driver !== own) R.text(tr('online.spectating', { result: tr('multi.dnf'), player: seatName(driver.localCar.seat) }),
       W / 2, H - 12, 17, '#ffdf79', { align: 'center', maxWidth: W * .65 });
   },
 };
