@@ -109,7 +109,8 @@ const Home = {
   },
 
   show(focusPlay = false) {
-    if (G.state === 'local') Local.leave();
+    if (Online.session || this.page?.id === 'online-page') Online.leave();
+    if (G.state === 'local' || G.state === 'online') Local.leave();
     if (this.page) { this.page.hidden = true; this.page = null; }
     RaceInput.clear();
     G.state = 'title'; G.keys = {}; G.auto = false;
@@ -130,16 +131,19 @@ const Home = {
   },
 
   openPage(id, button) {
+    if (this.page) this.page.hidden = true;
     this.opener = button;
     this.page = document.getElementById(id + '-page');
     this.nav.hidden = true;
     this.page.hidden = false;
     if (id === 'multi') Local.buildLobby();
+    if (id === 'online') Online.render();
     if (id === 'controls') Local.readLayout();
     this.page.querySelector('h1').focus({ preventScroll: true });
   },
 
   back() {
+    if (this.page.id === 'online-page') Online.leave();
     this.page.hidden = true;
     this.page = null;
     this.nav.hidden = false;
@@ -148,7 +152,7 @@ const Home = {
 
   keydown(e) {
     if (e.code === 'Escape' && this.page) { e.preventDefault(); this.back(); return; }
-    if (e.target === this.language) return;
+    if (e.target.matches?.('select, input')) return;
     if (e.code === 'KeyM' && !e.repeat) this.toggleSound();
     if (e.code === 'KeyP' && !e.repeat) this.togglePixel();
     if (this.page) return;
@@ -166,7 +170,7 @@ const Home = {
     if (action === 'back' || action === 'cancel') { if (this.page) this.back(); return; }
     if (action === 'start' && this.page?.id === 'multi-page') { Local.start(); return; }
     const scope = this.page || this.nav;
-    const items = [...scope.querySelectorAll('button, select, summary, input')].filter(el => el.getClientRects().length);
+    const items = [...scope.querySelectorAll('button, select, summary, input')].filter(el => !el.disabled && el.getClientRects().length);
     const focused = document.activeElement, at = items.indexOf(focused);
     if (!items.length) return;
     const change = dir => {

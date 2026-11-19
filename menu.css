@@ -130,12 +130,12 @@
 }
 
 .lobby-card { width: min(100%, 640px); }
-.lobby-head, .lobby-actions, #player-count, .auto-option { display: flex; align-items: center; gap: 8px; }
+.lobby-head, .lobby-actions, .count-choice, #player-count, .auto-option { display: flex; align-items: center; gap: 8px; }
 .lobby-head { align-items: flex-start; flex-direction: column; margin-bottom: 12px; }
 .lobby-head h1 { margin: 0 0 4px; }
-#player-count span { margin-right: 6px; }
-#player-count button { min-width: 42px; min-height: 38px; padding: 4px; font-weight: 900; }
-#player-count button[aria-pressed="true"], .lobby-actions .race-action, .final-board button {
+.count-choice span, #player-count span { margin-right: 6px; }
+.count-choice button, #player-count button { min-width: 42px; min-height: 38px; padding: 4px; font-weight: 900; }
+.count-choice button[aria-pressed="true"], #player-count button[aria-pressed="true"], .lobby-actions .race-action, .final-board button {
   background: #ffc84d; border-color: #ffed9c; color: #231024; font-weight: 900;
 }
 #lobby-seats { display: grid; gap: 5px; }
@@ -318,3 +318,18 @@
   .ride-thumb { width: 41px; height: 32px; }
   .seat-keys { grid-column: 1 / -1; }
 }
+
+.mode-switch { width: 100%; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.mode-switch button { color: #9affed; border-color: #6caaac; }
+#online-page [hidden] { display: none; }
+#online-vehicle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#online-status { color: #ffdf79; }
+#online-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; list-style: none; margin: 10px 0 16px; padding: 0; }
+#online-grid li { display: flex; gap: 8px; align-items: center; padding: 4px 8px; min-height: 36px; background: #301a3b; border-left: 3px solid var(--seat); color: var(--seat); }
+#online-grid canvas { width: 48px; height: 32px; flex: none; }
+#online-grid li[data-empty] { border-color: #674977; color: #c8adca; }
+#online-invite { margin: 14px 0; }
+#online-invite label { display: block; color: #eed5ef; margin-bottom: 5px; }
+#online-invite > div { display: flex; gap: 6px; }
+#invite-link { flex: 1; min-width: 0; padding: 8px; font-size: 14px; color: #e6d5ee; background: #1f1028; border: 1px solid #825d8c; }
+@media (max-width: 480px) { #online-grid { grid-template-columns: 1fr; } }

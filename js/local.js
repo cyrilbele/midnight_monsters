@@ -129,18 +129,28 @@ const Local = {
     this.root.hidden = false; this.root.dataset.players = this.count;
     this.root.tabIndex = -1; this.root.focus({preventScroll: true});
     this.autoThrottle = document.getElementById('local-auto').checked;
+    this.resetRace(this.rides.slice(0, this.count));
+    this.drivers.forEach((driver, i) => this.addView(driver, i));
+    if (this.count === 3) this.addBoard(false);
+    this.resizeViews();
+    Sound.startMusic();
+    this.draw();
+  },
+
+  // Both multiplayer modes advance the same eight-car field at a fixed time step.
+  resetRace(rides, random = Math.random, ownSeat = null) {
     this.done = false; this.countdown = 3.2; this.elapsed = 0;
     this.views = []; this.board = null; this.boardTick = -1;
-    this.drivers = this.rides.slice(0, this.count).map((vehicle, i) => {
+    this.drivers = rides.map((vehicle, i) => {
       const driver = Object.create(G);
-      Object.assign(driver, { vehicle, keys: {}, auto: false, state: 'countdown' });
+      Object.assign(driver, { vehicle, keys: {}, auto: false, state: 'countdown', audio: ownSeat === null || ownSeat === i ? Sound : null });
       driver.resetDriver();
-      driver.position = this.count > 2 && i < 2 ? 3 * SEG : 0;
+      driver.position = rides.length > 2 && i < 2 ? 3 * SEG : 0;
       driver.playerX = i % 2 ? 0.44 : -0.44;
       return driver;
     });
     const field = this.drivers[0];
-    field.resetField(this.rides.slice(0, this.count));
+    field.resetField(rides, true, random);
     this.entries = field.cars.slice();
     for (const [i, driver] of this.drivers.entries()) {
       driver.cars = field.cars; driver.traffic = field.traffic;
@@ -151,32 +161,39 @@ const Local = {
       driver.localCar = car;
       Track.find(z).cars.push(car);
       this.entries.push(car);
-      this.addView(driver, i);
     }
     this.rankField();
-    if (this.count === 3) this.addBoard(false);
-    this.resizeViews();
-    Sound.startMusic();
-    this.draw();
   },
 
   update(dt) {
+    if (this.done) return;
+    this.advanceRace(dt, seat => RaceInput.controls(seat, true));
+    if (this.done) {
+      this.observer.disconnect(); this.root.replaceChildren(); this.views = []; this.addBoard(true);
+    }
+  },
+
+  advanceRace(dt, controls, listener = null) {
     if (this.done) return;
     if (this.countdown > 0) {
       const before = Math.ceil(this.countdown);
       this.countdown = Math.max(0, this.countdown - dt);
       if (Math.ceil(this.countdown) !== before) Sound.beep(this.countdown === 0);
-      if (!this.countdown) for (const driver of this.drivers) driver.state = 'race';
+      if (!this.countdown) {
+        for (const driver of this.drivers) if (driver.state === 'countdown') driver.state = 'race';
+      }
       return;
     }
     const racing = this.drivers.filter(driver => driver.state === 'race');
+    if (!racing.length) { this.done = true; return; }
     // Advance the shared field once. All human drivers see the same motion for this tick.
     const front = racing.reduce((a, b) => a.position > b.position ? a : b);
     front.updateTraffic(dt);
     front.updateCars(dt, Track.find(front.position + PLAYER_Z), this.elapsed);
     for (const driver of racing) {
       const car = driver.localCar;
-      driver.keys = RaceInput.controls(car.seat, true);
+      driver.keys = controls(car.seat);
+      if (driver.keys.boost) driver.useTurbo();
       car.speed = driver.speed;
       driver.moveCar(car, driver.position + PLAYER_Z + driver.speed * dt);
     }
@@ -191,19 +208,23 @@ const Local = {
       car.offset = driver.playerX; car.speed = driver.speed;
       if (driver.state !== 'race') {
         car.finished = driver.state === 'finish'; car.finishedAt = driver.finishedAt;
-        driver.frozen = true; driver.speed = 0; car.speed = 0;
-        const bucket = Track.find(car.z).cars;
-        bucket.splice(bucket.indexOf(car), 1);
+        this.parkDriver(driver);
       }
     }
     this.elapsed += dt;
     this.rankField();
     this.done = this.drivers.every(driver => driver.state !== 'race');
-    const engine = racing.reduce((a, b) => a.speed > b.speed ? a : b);
+    const engine = listener ?? racing.reduce((a, b) => a.speed > b.speed ? a : b);
     Sound.engine(engine.speed / MAX_SPEED, !this.done, Math.abs(engine.playerX) > 1 && engine.speed > 500);
-    if (this.done) {
-      this.observer.disconnect(); this.root.replaceChildren(); this.views = []; this.addBoard(true);
-    }
+  },
+
+  parkDriver(driver) {
+    driver.frozen = true; driver.speed = 0;
+    const car = driver.localCar;
+    car.speed = 0;
+    const bucket = Track.find(car.z).cars;
+    const at = bucket.indexOf(car);
+    if (at >= 0) bucket.splice(at, 1);
   },
 
   rankField() {
@@ -241,7 +262,7 @@ const Local = {
     }
   },
 
-  addBoard(final) {
+  addBoard(final, action = () => this.replay(), label = 'multi.again') {
     const board = document.getElementById('standings-panel').content.firstElementChild.cloneNode(true);
     board.classList.toggle('final-board', final);
     board.style.setProperty('--board-font', I18n.fonts);
@@ -259,8 +280,8 @@ const Local = {
     });
     this.root.append(board); this.board = board;
     if (final) {
-      const again = document.createElement('button'); again.type = 'button'; again.textContent = tr('multi.again');
-      again.addEventListener('click', () => this.replay());
+      const again = document.createElement('button'); again.type = 'button'; again.textContent = tr(label);
+      again.addEventListener('click', action);
       board.querySelector('.standings-cabinet').append(again); again.focus({preventScroll: true});
     }
     this.drawBoard();

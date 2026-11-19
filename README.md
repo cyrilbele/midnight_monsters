@@ -1,8 +1,12 @@
 # Midnight Monsters
 
-A pixel-art arcade racer with 16 monster drivers, four haunted locations and split-screen racing for up to four players.
+A pixel-art arcade racer with 16 monster drivers, four haunted locations and races for two to four players online or in local split-screen.
 
 **[Play Midnight Monsters in your browser](https://cyrilbele.github.io/midnight_monsters/)**
+
+## Race with friends
+
+[Open the online lobby](https://cyrilbele.github.io/midnight_monsters/?online=1), choose 2, 3 or 4 players, create a room and share its invitation link. The countdown starts when everyone has joined. Keep the host’s tab open throughout the race.
 
 ## Run locally
 

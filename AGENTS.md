@@ -20,9 +20,13 @@ Dans le garage, gauche et droite choisissent le bolide, haut et bas le font pivo
 
 L’accueil dessine son illustration à la résolution du jeu dans `Home.drawScene()` et partage le filtre `R.pixelate()` avec la course. En portrait, le cadrage conserve 640 pixels de large et recadre les côtés. Les boutons restent des contrôles HTML accessibles. Leur dessin dans `Home.drawActions()` utilise la résolution des compteurs pour garder les libellés lisibles.
 
+### Jouer en ligne
+
+Depuis **Multijoueur → Course en ligne**, choisir 2, 3 ou 4 pilotes, créer le salon et copier le lien d’invitation. Le nombre inclut l’hôte. Chaque invité ouvre ce lien sur son appareil. Le décompte démarre dès que le dernier jeu a chargé ses dessins et rejoint le salon. Chaque appareil utilise les commandes du mode solo et affiche sa propre vue. Il faut garder l’onglet de l’hôte ouvert jusqu’aux résultats. [Salon sur GitHub Pages](https://cyrilbele.github.io/midnight_monsters/?online=1)
+
 ### Jouer à plusieurs sur le même ordinateur
 
-Ouvrir **Multijoueur local** à l’accueil, choisir le nombre de joueurs, un véhicule et les commandes de chacun. À deux, un pilote occupe la moitié supérieure de l’écran et l’autre la moitié inférieure. À trois, le classement en direct occupe la case inférieure droite. À quatre, chaque case suit un pilote. Le jeu complète la grille de huit avec des adversaires. [Garage à deux](http://localhost:8642/?players=2) · [À trois](http://localhost:8642/?players=3) · [À quatre](http://localhost:8642/?players=4)
+Ouvrir **Multijoueur** à l’accueil, choisir le nombre de joueurs, un véhicule et les commandes de chacun. À deux, un pilote occupe la moitié supérieure de l’écran et l’autre la moitié inférieure. À trois, le classement en direct occupe la case inférieure droite. À quatre, chaque case suit un pilote. Le jeu complète la grille de huit avec des adversaires. [Garage à deux](http://localhost:8642/?players=2) · [À trois](http://localhost:8642/?players=3) · [À quatre](http://localhost:8642/?players=4)
 
 | Place | Gauche / droite | Accélérer / freiner | Turbo |
 | --- | --- | --- | --- |
@@ -254,6 +258,7 @@ Head and crest visible above the low body in all views.
 | Le tracé, les reliefs, les décors et la grille adverse | `js/track.js` |
 | La conduite, les collisions, le chronomètre et les commandes | `js/game.js` |
 | Les touches partagées, les axes et les boutons des manettes | `js/input.js`, notamment `SEAT_KEYS` et `RaceInput.sample()` |
+| Le salon en ligne, les invitations et les échanges WebRTC | `js/online.js`, PeerJS dans `vendor/peerjs-1.5.5/` |
 | Le garage multijoueur, la course partagée, les caméras et le classement | `js/local.js`, les gabarits dans `index.html` et les styles dans `menu.css` |
 | L’accueil, les panneaux Commandes et Options et leurs boutons | `index.html`, `menu.css`, `js/menu.js` et les PNG `sprites/ui/title_*.png` |
 | Les traductions du jeu et les fiches des pilotes | `js/locales/en.js`, `fr.js`, `ja.js`, `zh-CN.js` et `es.js` dans le même dossier |
@@ -272,7 +277,9 @@ Dans `Track.build()`, chaque appel à `road(entrée, maintien, sortie, courbure,
 
 À chaque départ, `rivalGrid()` réserve les véhicules choisis par les joueurs puis tire les adversaires pour former une grille de huit pilotes distincts. Les huit pilotes hors grille font chacun une apparition dans le trafic lent, aux côtés de Frankenstein, Freddy et la Créature du lagon. Leur largeur et leurs vues de braquage proviennent du garage. Leur vitesse de croisière vaut 80 km/h plus 8 km/h par point de vitesse.
 
-En multijoueur, `Local.update()` avance le trafic et les adversaires une fois par pas de simulation. Chaque humain utilise la conduite de `G.update()`, avec son propre chrono, ses épreuves et son turbo. Une fiole ramassée disparaît pour tous. Les joueurs arrivés ou éliminés attendent les autres. Le classement départage les arrivées dans le même pas à partir de l’instant du franchissement de la ligne.
+En multijoueur, `Local.advanceRace()` avance le trafic et les adversaires une fois par pas de simulation. Chaque humain utilise la conduite de `G.update()`, avec son propre chrono, ses épreuves et son turbo. Une fiole ramassée disparaît pour tous. Les joueurs arrivés ou éliminés attendent les autres. Le classement départage les arrivées dans le même pas à partir de l’instant du franchissement de la ligne.
+
+En ligne, PeerJS Cloud met les navigateurs en relation. L’hôte attribue les places, transmet la graine de la grille et valide les commandes de chaque pas de course. Les invités rejouent ces pas dans l’ordre et affichent le classement final envoyé par l’hôte. La bibliothèque PeerJS se charge à l’ouverture d’une connexion. Lors d’un changement incompatible des messages ou des règles de simulation, incrémenter `ROOM_VERSION` dans `js/online.js` et actualiser les versions des scripts concernés dans `index.html`.
 
 Le classement à trois et les résultats de fin de course partagent le gabarit `standings-panel` et les dessins `sprites/ui/standings_*.png`. Pour retoucher une vignette de bolide, modifier la vue 04 de sa planche, le profil avec le nez vers la droite. `Local.drawBoard()` associe cette vue au pilote et règle sa jauge selon la distance parcourue.
 
@@ -295,6 +302,7 @@ Draw a single collectible sprite for Midnight Monsters, a 1990s pixel-art monste
 
 | À contrôler | Vue locale |
 | --- | --- |
+| Un salon en ligne | [Créer le salon](http://localhost:8642/?online=1) · choisir trois places, suivre l’invitation dans deux autres fenêtres puis vérifier le départ, le turbo et le classement. Pour jouer sur plusieurs appareils, partager le lien issu de GitHub Pages. |
 | Les dessins et les vues des pilotes, par pages de 30 | [Galerie](http://localhost:8642/?sheet=1) · changer la valeur de `sheet` pour avancer |
 | La composition des quatre zones sur le parcours jouable | [Comparaison](http://localhost:8642/?compare=1) · cliquer sur une scène pour l’agrandir |
 | La première potion de turbo, au milieu de la chaussée | [Approche de la fiole au motel](http://localhost:8642/?compare=1&shot=0&seg=229) |

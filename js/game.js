@@ -27,7 +27,7 @@ function trafficName(id) {
 }
 
 const G = {
-  state: 'loading',
+  state: 'loading', audio: Sound,
   position: 0, playerX: 0, speed: 0, steer: 0,
   time: START_TIME, dawn: DAWN_MAX, dawnMax: DAWN_MAX, dawnT: 0, elapsed: 0,
   rank: 8, zone: 0, cars: [], traffic: [], keys: {}, shake: 0, pixel: params.get('px') === '1',
@@ -135,7 +135,7 @@ const G = {
     if (this.turboLeft === 0) this.turboStart = this.elapsed;
     this.charge--;
     this.turboLeft += TURBO_DURATION;
-    Sound.turbo();
+    this.audio?.turbo();
   },
 
   collectPotions(startZ, endZ, startX, claims) {
@@ -160,7 +160,7 @@ const G = {
     if (this.charge >= TURBO_CAPACITY) return;
     this.charge++;
     this.potionNoticeUntil = this.elapsed + 1.2;
-    Sound.potion();
+    this.audio?.potion();
   },
 
   autoControls(seg, driving) {
@@ -219,12 +219,12 @@ const G = {
       const before = Math.ceil(this.countdown);
       this.countdown -= dt;
       const after = Math.ceil(this.countdown);
-      if (after !== before && after > 0) Sound.beep(false);
+      if (after !== before && after > 0) this.audio?.beep(false);
       if (this.countdown <= 0) {
-        this.state = 'race'; Sound.beep(true);
+        this.state = 'race'; this.audio?.beep(true);
         this.msg = { text: tr('race.go'), sub: tr('race.beatDawn'), t: 0, life: 1.4 };
       }
-      Sound.engine(0.05 + (this.keys.up ? 0.25 : 0), true, false);
+      this.audio?.engine(0.05 + (this.keys.up ? 0.25 : 0), true, false);
       return;
     }
     if (this.state !== 'race' && this.state !== 'finish' && this.state !== 'over') return;
@@ -270,7 +270,7 @@ const G = {
         const cx = left0 + (sp.flip ? 1 - sp.hit[0] : sp.hit[0]) * wU;
         if (U.overlap(this.playerX, this.playerW, cx, sp.hit[1] * wU)) {
           impact = true;
-          if (this.speed > MAX_SPEED * 0.12) { Sound.crash(); this.shake = 1; }
+          if (this.speed > MAX_SPEED * 0.12) { this.audio?.crash(); this.shake = 1; }
           this.speed = Math.min(this.speed, MAX_SPEED * (0.08 + this.armor * 0.03));
           this.position = playerSeg.p1.world.z - PLAYER_Z;
           this.playerX += this.playerX > 0 ? -0.08 : 0.08;
@@ -289,7 +289,7 @@ const G = {
     const moved = (this.position - startPos) / SEG;
     this.hillOffset += 0.00074 * playerSeg.curve * moved;
 
-    if (!this.localCar) Sound.engine(this.speed / MAX_SPEED, true, offroad && this.speed > 500);
+    if (!this.localCar) this.audio?.engine(this.speed / MAX_SPEED, true, offroad && this.speed > 500);
 
     // ranking
     const pz = this.position + PLAYER_Z;
@@ -309,7 +309,7 @@ const G = {
       this.zone = zNow;
       this.time += CHECKPOINT_BONUS[zNow];
       this.checkpointNoticeUntil = this.elapsed + 1.8;
-      Sound.checkpoint();
+      this.audio?.checkpoint();
     }
     // Sample the excursion before a roadside impact can nudge the car back in.
     if (lateral <= OFFROAD_REARM) this.offCourse = false;
@@ -323,7 +323,7 @@ const G = {
       this.nearMisses += closePasses;
       this.charge = Math.min(TURBO_CAPACITY, this.charge + closePasses);
       this.passFlash = 1.25;
-      Sound.closePass();
+      this.audio?.closePass();
     }
     if (!impact) {
       this.collectPotions(startPos + PLAYER_Z + PLAYER_NOSE, pz + PLAYER_NOSE, startX, potionClaims);
@@ -335,7 +335,7 @@ const G = {
       this.turboLeft = 0;
       const stepDistance = this.position - startPos;
       this.finishedAt = this.elapsed - (this.localCar && stepDistance > 0 ? dt * U.limit((pz - Track.finishSeg * SEG) / stepDistance, 0, 1) : 0);
-      Sound.finish();
+      this.audio?.finish();
       const order = this.cars.filter(c => c.finished).length;
       this.results = { rank: order + 1, time: this.finishedAt, dawn: this.dawn };
       this.rank = order + 1;
@@ -351,7 +351,7 @@ const G = {
     this.state = 'over';
     this.turboLeft = 0;
     this.results = { text, sub };
-    Sound.lose();
+    this.audio?.lose();
   },
 
   finishTrial(trial, bonus, detail) {
@@ -359,7 +359,7 @@ const G = {
       this.time += bonus;
       this.trialsWon++;
     }
-    Sound.trialResult(bonus > 0);
+    this.audio?.trialResult(bonus > 0);
     this.trialNotice = { title: tr('trial.' + trial.kind), text: detail + (bonus ? '   +' + I18n.seconds(bonus) : ''), won: bonus > 0, until: this.elapsed + 2.6 };
     this.trialIndex++;
     this.trialGate = 0; this.trialHits = 0;
@@ -390,7 +390,7 @@ const G = {
       const room = SLALOM_HALF - (this.playerWorldWidth + SPRITES.trial_lantern.w) * 0.44 / width;
       if (!impact && Math.abs(x - gate.x) <= room) {
         this.trialHits++;
-        Sound.gate();
+        this.audio?.gate();
       }
       if (this.trialGate === trial.gates.length) {
         const bonus = this.trialHits === 3 ? trial.bonus + 2 : this.trialHits === 2 ? trial.bonus : 0;
@@ -405,7 +405,7 @@ const G = {
       this.finishTrial(trial, 0, tr('trial.missed'));
     } else if (!active) {
       this.trialStart = at;
-      Sound.gate();
+      this.audio?.gate();
     } else {
       const detail = trial.kind === 'sprint' ? I18n.seconds(at - this.trialStart, 1) : tr('trial.cleared');
       this.finishTrial(trial, trial.bonus, detail);
@@ -470,7 +470,7 @@ const G = {
       const baseSpeed = hit.speed * (hit.speed / this.speed);
       this.speed = U.lerp(baseSpeed, hit.speed, (this.armor - 1) / 8);
       if (hit.traffic) this.passedTraffic.add(hit);
-      Sound.bump(); this.shake = 0.5;
+      this.audio?.bump(); this.shake = 0.5;
     }
     return true;
   },
@@ -565,6 +565,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (params.has('compare')) return;
+  if (G.state === 'online' && Local.done) return;
   if (G.state === 'local') {
     if (e.code === 'KeyM' && !e.repeat) Home.toggleSound();
     if (e.code === 'KeyP' && !e.repeat) Home.togglePixel();
@@ -601,7 +602,10 @@ addEventListener('keydown', e => {
     return;
   }
   if (SOLO_KEYS[e.code]) { RaceInput.held.add(e.code); G.keys = RaceInput.controls(0, false); e.preventDefault(); }
-  if (e.code === 'KeyX' && !e.repeat) { e.preventDefault(); G.useTurbo(); }
+  if (e.code === 'KeyX' && !e.repeat) {
+    e.preventDefault();
+    if (G.state === 'online') Online.turbo(); else G.useTurbo();
+  }
   if (e.code === 'Enter' && resultsScreen()) G.openSelect();
   if (e.code === 'KeyM' && !e.repeat) Home.toggleSound();
   if (e.code === 'KeyP' && !e.repeat) Home.togglePixel();
@@ -630,11 +634,12 @@ addEventListener('pointerdown', e => {
   if (e.target !== canvas) return;
   if (G.state === 'select') { Select.click(...canvasPoint(e)); return; }
   if (resultsScreen()) G.openSelect();
+  else if (G.state === 'online' && overTurbo(...canvasPoint(e))) Online.turbo();
   else if (G.state === 'race' && overTurbo(...canvasPoint(e))) G.useTurbo();
 });
 // The second thumb can fire the turbo while the first keeps steering.
 function touchDrive(e) {
-  if (G.state !== 'race') return;
+  if (G.state !== 'race' && G.state !== 'online') return;
   let left = false, right = false;
   for (const touch of e.touches) {
     const [x, y] = canvasPoint(touch);
@@ -849,6 +854,7 @@ fit();
     return;
   }
   Local.init();
+  Online.init();
   Home.init();
   G.reset();
   if (params.has('sheet')) { drawSheet(); return; }
@@ -859,7 +865,10 @@ fit();
   else {
     Home.show();
     const players = Number(params.get('players'));
-    if ([2, 3, 4].includes(players)) {
+    if (Online.invitation() !== null || params.has('online')) {
+      Online.open();
+      if (Online.invitation() !== null) Online.connect(Online.invitation());
+    } else if ([2, 3, 4].includes(players)) {
       Local.count = players;
       Home.openPage('multi', document.getElementById('open-multi'));
     }
@@ -874,12 +883,14 @@ fit();
     if (G.state === 'race' || G.state === 'countdown') G.keys = RaceInput.controls(0, false);
     acc += dt;
     while (acc >= STEP) {
-      if (G.state === 'local') Local.update(STEP);
+      if (G.state === 'online') Online.update();
+      else if (G.state === 'local') Local.update(STEP);
       else if (G.state === 'select') Select.update(STEP);
       else G.update(STEP);
       acc -= STEP;
     }
-    if (G.state === 'local') Local.draw();
+    if (G.state === 'online') Online.draw();
+    else if (G.state === 'local') Local.draw();
     else if (G.state === 'select') Select.draw(G.pixel);
     else if (G.state !== 'title') {
       R.frame(G);

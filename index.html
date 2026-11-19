@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Midnight Monsters</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="menu.css?v=29">
+<link rel="stylesheet" href="menu.css?v=30">
 <link rel="icon" href="sprites/ui/badge/badge_hearse.png">
 <style>
   html, body { margin: 0; height: 100%; background: #07030f; overflow: hidden; }
@@ -22,20 +22,21 @@
 </head>
 <body>
 <div id="wrap"><canvas id="game" width="640" height="480" tabindex="-1" aria-label="Midnight Monsters"></canvas></div>
-<main id="split-race" aria-label="Local multiplayer" data-i18n-aria="multi.title" hidden></main>
+<main id="split-race" aria-label="Multiplayer" data-i18n-aria="online.multiplayer" hidden></main>
 <main id="home" aria-label="Midnight Monsters" hidden>
   <div class="title-stage">
     <canvas class="title-art" width="640" height="480" aria-hidden="true"></canvas>
     <nav id="title-actions" aria-label="Main menu" data-i18n-aria="menu.main">
       <button type="button" id="play" class="title-play" aria-label="Play" data-i18n-aria="menu.play" aria-keyshortcuts="Enter"><canvas width="184" height="33" data-menu-art="titlePlay" aria-hidden="true"></canvas></button>
-      <button type="button" id="open-multi" class="title-link multi-link" aria-controls="multi-page" aria-label="Local multiplayer" data-i18n-aria="multi.title"><canvas width="130" height="18" aria-hidden="true"></canvas></button>
+      <button type="button" id="open-multi" class="title-link multi-link" aria-controls="multi-page" aria-label="Multiplayer" data-i18n-aria="online.multiplayer"><canvas width="130" height="18" aria-hidden="true"></canvas></button>
       <button type="button" id="open-controls" class="title-link controls-link" aria-controls="controls-page" aria-label="Controls" data-i18n-aria="menu.controls"><canvas width="118" height="18" data-menu-art="titleKeyboard" aria-hidden="true"></canvas></button>
       <button type="button" id="open-options" class="title-link options-link" aria-controls="options-page" aria-label="Options" data-i18n-aria="menu.options"><canvas width="84" height="18" data-menu-art="titleGear" aria-hidden="true"></canvas></button>
     </nav>
   </div>
   <section id="multi-page" class="menu-page" aria-labelledby="multi-heading" hidden>
     <div class="menu-card lobby-card">
-      <header class="lobby-head"><h1 id="multi-heading" tabindex="-1" data-i18n="multi.title">Local multiplayer</h1>
+      <header class="lobby-head">
+        <div class="mode-switch"><h1 id="multi-heading" tabindex="-1" data-i18n="multi.title">Local multiplayer</h1><button id="open-online" type="button" aria-controls="online-page" data-i18n="online.title">Online race</button></div>
         <div id="player-count" role="group" data-i18n-aria="multi.players">
           <span data-i18n="multi.players">Players</span>
           <button type="button" aria-pressed="true">2</button><button type="button" aria-pressed="false">3</button><button type="button" aria-pressed="false">4</button>
@@ -45,6 +46,25 @@
       <label class="auto-option"><input type="checkbox" id="local-auto" checked><span data-i18n="multi.auto">Auto-accelerate on keyboard</span></label>
       <p class="pad-hint" data-i18n="multi.padHint">Press a button on each connected controller to make it available.</p>
       <footer class="lobby-actions"><button type="button" class="menu-back" data-i18n="menu.back">Back</button><button type="button" id="local-start" class="race-action" data-i18n="multi.start">Start race</button></footer>
+    </div>
+  </section>
+  <section id="online-page" class="menu-page" aria-labelledby="online-heading" hidden>
+    <div class="menu-card lobby-card">
+      <header class="lobby-head"><div class="mode-switch"><h1 id="online-heading" tabindex="-1" data-i18n="online.title">Online race</h1><button id="open-local" type="button" aria-controls="multi-page" data-i18n="multi.title">Local multiplayer</button></div></header>
+      <div id="online-setup">
+        <div id="online-count" class="count-choice" role="group" data-i18n-aria="multi.players">
+          <span data-i18n="multi.players">Players</span>
+          <button type="button" aria-pressed="true">2</button><button type="button" aria-pressed="false">3</button><button type="button" aria-pressed="false">4</button>
+        </div>
+      </div>
+      <label id="online-vehicle" class="setting"><span data-i18n="garage.vehicle">Vehicle</span><select id="online-ride"></select></label>
+      <p id="online-status" role="status" aria-live="polite"></p>
+      <ol id="online-grid" aria-label="Players" data-i18n-aria="multi.players" hidden></ol>
+      <div id="online-invite" hidden>
+        <label for="invite-link" data-i18n="online.invite">Invitation link</label>
+        <div><input id="invite-link" type="url" readonly spellcheck="false"><button type="button" id="copy-invite" data-i18n="online.copy">Copy link</button></div>
+      </div>
+      <footer class="lobby-actions"><button type="button" class="menu-back" data-i18n="menu.back">Back</button><button type="button" id="online-create" class="race-action" data-i18n="online.create">Create room</button></footer>
     </div>
   </section>
   <section id="controls-page" class="menu-page" aria-labelledby="controls-heading" hidden>
@@ -130,20 +150,21 @@
 </form>
 <script src="js/util.js?v=28"></script>
 <script src="js/i18n.js?v=18"></script>
-<script src="js/locales/en.js?v=29"></script>
-<script src="js/locales/fr.js?v=29"></script>
-<script src="js/locales/ja.js?v=29"></script>
-<script src="js/locales/zh-CN.js?v=29"></script>
-<script src="js/locales/es.js?v=29"></script>
+<script src="js/locales/en.js?v=30"></script>
+<script src="js/locales/fr.js?v=30"></script>
+<script src="js/locales/ja.js?v=30"></script>
+<script src="js/locales/zh-CN.js?v=30"></script>
+<script src="js/locales/es.js?v=30"></script>
 <script src="js/sprites.js?v=26"></script>
 <script src="js/assets.js?v=20"></script>
 <script src="js/track.js?v=28"></script>
 <script src="js/render.js?v=28"></script>
 <script src="js/audio.js?v=29"></script>
 <script src="js/select.js?v=29"></script>
-<script src="js/menu.js?v=29"></script>
-<script src="js/input.js?v=28"></script>
-<script src="js/local.js?v=29"></script>
-<script src="js/game.js?v=28"></script>
+<script src="js/menu.js?v=30"></script>
+<script src="js/input.js?v=30"></script>
+<script src="js/local.js?v=30"></script>
+<script src="js/online.js?v=30"></script>
+<script src="js/game.js?v=30"></script>
 </body>
 </html>

@@ -108,6 +108,11 @@ const RaceInput = {
       }
       return;
     }
+    if (G.state === 'online') {
+      if (Local.done && (action === 'accept' || action === 'start')) Home.show(true);
+      else if (action === 'turbo') Online.turbo();
+      return;
+    }
     if (G.state === 'select') {
       if (action === 'left' || action === 'right') Select.move(action === 'left' ? -1 : 1);
       if (action === 'up' || action === 'down') Select.rotate(action === 'up' ? 1 : -1);
