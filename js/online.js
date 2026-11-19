@@ -2,23 +2,25 @@
 
 // Each guest sends its controls to the host. Everyone advances the same seeded field
 // from the host's ordered 60 Hz inputs, sent two steps at a time over WebRTC.
-const ROOM_VERSION = 5;
+const ROOM_VERSION = 6;
 const ROOM_ID = /^mm-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-const BOOST_BIT = 1 << 16;
+const START_BOOST_BIT = 1 << 16;
+const BOOST_BIT = 1 << 17;
 const IDLE_INPUT = 100;
 const validCount = n => Number.isInteger(n) && n >= 2 && n <= 4;
 const validRide = id => typeof id === 'string' && Object.hasOwn(VEHICLES, id);
 const validInput = bits => Number.isInteger(bits) && bits >= 0 && bits < BOOST_BIT && (bits & 255) <= 200;
 
 function packInput() {
-  const k = RaceInput.controls(0, false);
+  const k = RaceInput.controls(0, false, Local.countdown);
   const steer = k.left ? -1 : k.right ? 1 : k.axis || 0;
-  return Math.round(100 + 100 * steer) | (Math.round(15 * (k.up || 0)) << 8) | (Math.round(15 * (k.down || 0)) << 12);
+  return Math.round(100 + 100 * steer) | (Math.round(15 * (k.up || 0)) << 8) |
+    (Math.round(15 * (k.down || 0)) << 12) | (k.startBoost ? START_BOOST_BIT : 0);
 }
 
 function unpackInput(bits) {
   return { axis: ((bits & 255) - 100) / 100, up: ((bits >> 8) & 15) / 15,
-    down: ((bits >> 12) & 15) / 15, boost: !!(bits & BOOST_BIT) };
+    down: ((bits >> 12) & 15) / 15, startBoost: !!(bits & START_BOOST_BIT), boost: !!(bits & BOOST_BIT) };
 }
 
 class RaceRoom {
@@ -530,7 +532,7 @@ const Online = {
     else R.hud(driver);
     const count = Math.ceil(Local.countdown);
     if (count > 0 && count <= 3) R.banner(String(count), tr('race.ready'), 1 - Local.countdown % 1);
-    else if (!Local.countdown && Local.elapsed < .75) R.banner(tr('race.go'), '', Local.elapsed);
+    else if (!Local.countdown && Local.elapsed < .75) R.banner(tr('race.go'), driver.rocketStart ? tr('race.rocketStart') : '', Local.elapsed);
     if (driver !== own) R.text(tr('online.spectating', { result: tr('multi.dnf'), player: seatName(driver.localCar.seat) }),
       W / 2, H - 12, 17, '#ffdf79', { align: 'center', maxWidth: W * .65 });
   },

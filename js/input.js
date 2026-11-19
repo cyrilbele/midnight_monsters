@@ -11,7 +11,7 @@ const SOLO_KEYS = { ArrowLeft: 'left', KeyA: 'left', KeyQ: 'left', ArrowRight: '
 const KEY_GLYPHS = { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', Enter: '↵' };
 
 const RaceInput = {
-  held: new Set(), pads: new Map(), touch: {},
+  held: new Set(), pads: new Map(), touch: {}, startDigits: [],
 
   keyLine(seat) {
     const labels = {};
@@ -26,22 +26,26 @@ const RaceInput = {
   clear() {
     this.held.clear();
     this.touch = {};
+    this.startDigits.length = 0;
     if (G.state === 'race' || G.state === 'countdown') G.keys = {};
   },
 
-  controls(seat, local) {
-    const keys = {};
-    if (local) {
-      const device = Local.devices[seat];
-      const pad = this.pads.get(device);
-      if (pad) return pad.drive;
+  controls(seat, local, countdown = 0) {
+    const device = local ? Local.devices[seat] : this.pads.keys().next().value;
+    const pad = this.pads.get(device);
+    const keys = { ...pad?.drive };
+    if (!local) {
+      Object.assign(keys, this.touch);
+      for (const code of this.held) if (SOLO_KEYS[code]) keys[SOLO_KEYS[code]] = true;
+    } else if (!pad) {
       for (const [action, code] of Object.entries(SEAT_KEYS[seat])) keys[action] = this.held.has(code);
-      if (device === null && Local.autoThrottle && !keys.down) keys.up = true;
-      return keys;
+      if (!countdown && device === null && Local.autoThrottle && !keys.down) keys.up = true;
     }
-    const pad = this.pads.values().next().value;
-    Object.assign(keys, pad?.drive, this.touch);
-    for (const code of this.held) if (SOLO_KEYS[code]) keys[SOLO_KEYS[code]] = true;
+    if (countdown > 0) {
+      // Keep the digit seen by this driver for the lifetime of this pedal press.
+      this.startDigits[seat] = keys.up ? this.startDigits[seat] || Math.ceil(countdown) : 0;
+      keys.startBoost = this.startDigits[seat] === 2;
+    }
     return keys;
   },
 

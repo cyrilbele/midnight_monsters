@@ -2,6 +2,9 @@
 
 const STAGE_COUNT = 4;
 const FINISH_HALF_WIDTH = 3300;
+const FINISH_SWEEP = 7 * Math.PI / 8; // the last turntable frame before a full front view
+const FINISH_TURN_DEPTH = 11 * SEG;
+const FINISH_TURN_RADIUS_X = .13;
 const WORLD_IDS = ZONES.map(zone => zone.id);
 const BODY_BAND = [[0, .80]];
 function validRoute(route) {
@@ -165,26 +168,40 @@ const Track = {
   enterFinishArea(car, crossingTime) {
     if (car.finished) return;
     const bay = this.finishBay(car.gridSlot);
+    const direction = bay.x < 0 ? 1 : -1;
+    const turnZ = bay.z - FINISH_TURN_DEPTH * Math.sin(FINISH_SWEEP);
+    const turnX = bay.x - direction * FINISH_TURN_RADIUS_X * (1 - Math.cos(FINISH_SWEEP));
+    const straight = turnZ - car.z, length = straight + 2 * FINISH_TURN_DEPTH;
     car.finished = true; car.finishedAt = crossingTime;
-    car.arrival = { bay, fromZ: car.z, fromX: car.offset,
-      braking: Math.max(car.speed, MAX_SPEED * .45) ** 2 / (2 * (bay.z - car.z)) };
+    car.arrival = { bay, fromX: car.offset, direction, turnX, turnZ, straight, length, distance: 0,
+      braking: Math.max(car.speed, MAX_SPEED * .45) ** 2 / (2 * length) };
     car.parked = false; car.bounce = 0;
   },
 
   brakeIntoBay(car, dt) {
     if (car.parked) return;
-    const { bay, fromZ, fromX, braking } = car.arrival;
-    const left = bay.z - car.z;
+    const path = car.arrival;
+    const { bay, fromX, direction, turnX, turnZ, straight, length, braking } = path;
+    const left = length - path.distance;
     // The stopping speed v² = 2ad keeps a fast finisher inside its bay.
     // A slower one can pull clear of the timing line before braking.
     const speed = Math.min(car.speed + MAX_SPEED * .35 * dt, Math.sqrt(2 * braking * left));
-    const z = Math.min(bay.z, car.z + dt * speed);
-    const t = (z - fromZ) / (bay.z - fromZ);
-    const x = U.lerp(fromX, bay.x, t * t * (3 - 2 * t));
+    path.distance = Math.min(length, path.distance + dt * speed);
+    car.parked = path.distance === length;
+    let x, z;
+    if (path.distance < straight) {
+      const t = path.distance / straight;
+      z = turnZ - (straight - path.distance);
+      x = U.lerp(fromX, turnX, t * t * (3 - 2 * t));
+      car.pose = Math.round(U.limit(3 * (x - car.offset) / dt, -2, 2));
+    } else {
+      const angle = FINISH_SWEEP * (path.distance - straight) / (length - straight);
+      x = car.parked ? bay.x : turnX + direction * FINISH_TURN_RADIUS_X * (1 - Math.cos(angle));
+      z = car.parked ? bay.z : turnZ + FINISH_TURN_DEPTH * Math.sin(angle);
+      car.pose = direction * Math.round(angle / (Math.PI / 8));
+    }
     car.turn = (x - car.offset) / dt; car.offset = x;
-    car.pose = Math.round(U.lerp(U.limit(car.turn * 3, -2, 2), bay.x * 3, t));
     this.moveCar(car, z);
-    car.parked = z === bay.z;
     car.speed = car.parked ? 0 : speed;
     if (car.parked) car.turn = 0;
   },

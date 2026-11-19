@@ -18,6 +18,14 @@ const RACE_LABELS = {
 };
 const DIGIT_WIDTHS = [32, 25, 33, 33, 30, 38, 32, 32, 35, 30];
 const TURBO_BUTTON = { x: 12, y: H - 55, w: 121, h: 44 };
+// Windows in the 640 × 480 painted grandstand, between the posts and rails.
+const FINISH_CHEERS = [
+  // x, y, width, height, jump in pixels, seconds per cheer
+  [60, 111, 78, 36, 3, .84], [157, 107, 87, 32, 2, 1.18],
+  [261, 105, 121, 36, 3, .96], [402, 106, 84, 33, 2, 1.32], [505, 110, 75, 36, 3, .77],
+  [0, 244, 132, 158, 5, 1.08], [509, 250, 131, 152, 5, 1.46],
+];
+const FINISH_FLAGS = [148, 253, 395, 500];
 
 const R = {
   ctx: null,
@@ -30,6 +38,11 @@ const R = {
   init(canvas) {
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.ctx.imageSmoothingEnabled = false;
+    this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    this.stillStands = new Path2D();
+    this.stillStands.rect(0, 0, W, H);
+    for (const [x, y, w, h] of FINISH_CHEERS) this.stillStands.rect(x, y, w, h);
+    for (const x of FINISH_FLAGS) this.stillStands.rect(x, 33, 32, 36);
     ZONES.forEach(z => { this.fogCache[z.id] = Array.from({ length: 33 }, (_, i) => U.rgba(z.fog, (i / 32) * 0.85)); });
   },
 
@@ -164,7 +177,7 @@ const R = {
     const fog = this.fogCache[zone.id], fogK = zone.fogK || 1;
     const iz1 = 1 / seg.p1.camera.z, iz2 = 1 / seg.p2.camera.z, dy = y1 - y2;
     const fogMax = DRAW_DIST * SEG;
-    const bg = A.bg[seg.zone], surface = seg.finishApron ? A.finish.paving : bg[seg.surface || 'road'];
+    const bg = A.bg[seg.zone], surface = seg.finishApron ? bg.finishFloor : bg[seg.surface || 'road'];
     const bridge = !!seg.textureSpan, tunnel = seg.surface === 'temple' || seg.surface === 'bore';
     const ground = bridge ? bg.ravineGround : tunnel ? surface : bg.ground;
     const period = zone.tileSegments * SEG;
@@ -292,7 +305,7 @@ const R = {
         const smoothYaw = lastYaw == null ? yaw : U.lerp(lastYaw, yaw, 0.3);
         if (this.cameraYaws) this.cameraYaws.set(car, smoothYaw); else car.yawS = smoothYaw;
         const f = car.pose ?? U.limit(Math.round(smoothYaw / (Math.PI / 8)), -3, 3);
-        const top = this.vehicle(car.vehicle, f, s, sx, sy, seg.clip, alpha);
+        const top = this.vehicle(car.vehicle, f, s, sx, sy, seg.clip, alpha, !car.finished);
         if (car.driver && n < 48 && top < seg.clip && sx > 0 && sx < this.width) {
           this.text(seatName(car.seat), sx, top - 3, Math.max(12, 20 - n / 4), SEAT_COLORS[car.seat], {align: 'center', lw: 2});
         }
@@ -356,7 +369,8 @@ const R = {
     if (dw < 0.8 || dw > W * 8) return;
     const dh = dw * img.height / img.width * heightScale;
     const dx = x + dw * ax, dy = y - dh;
-    if (dx > this.width || dx + dw < 0 || dy > H) return;
+    // The 4:3 finish camera can be scaled down inside a narrower split view.
+    if (dx > Math.max(this.width, W) || dx + dw < 0 || dy > H) return;
     const clipH = clipY ? Math.max(0, dy + dh - clipY) : 0;
     if (clipH >= dh - 0.5) return;
     const ctx = this.ctx;
@@ -423,19 +437,19 @@ const R = {
   },
 
   // Zero faces away, positive turns right. Traffic has one painted turn per side.
-  vehicle(id, f, scale, x, y, clipY, alpha) {
+  vehicle(id, f, scale, x, y, clipY, alpha, leaning = true) {
     const traffic = A.traffic[id];
     const frame = traffic ? traffic[1 + Math.sign(f)] : A.frame(id, f);
     const rear = f === 0 && A.raceRear[id];
     const img = rear || frame;
     const hearse = id === 'hearse';
-    const bikeWidth = id === 'werewolf' && f ? 0.89 : 1;
+    const bikeWidth = id === 'werewolf' && f && leaning ? 0.89 : 1;
     const worldW = traffic ? TRAFFIC_MODELS[id].w * frame.width / traffic[1].width :
       frame.width * VEHICLE_PX * VEHICLES[id].scale * (hearse ? 1.07 : bikeWidth);
     const dw = worldW * scale * W / 2;
     const heightScale = 1 / bikeWidth;
     const dh = dw * img.height / img.width * heightScale;
-    const lean = id === 'werewolf' && f ? U.limit(f * 0.085, -0.2, 0.2) : 0;
+    const lean = id === 'werewolf' && f && leaning ? U.limit(f * 0.085, -0.2, 0.2) : 0;
     if (dw > 3 && (!clipY || y <= clipY + 1)) {
       const ctx = this.ctx;
       let cx = x, cy = y - dw * 0.009, length = dw * 0.49, angle = 0;
@@ -485,16 +499,40 @@ const R = {
     }
   },
 
-  // The finish camera looks across the timing line. Every car here is drawn
-  // from its live position, including late arrivals and cars at rest.
+  finishCrowd(seconds) {
+    const ctx = this.ctx, crowd = A.finish.crowd;
+    if (this.reducedMotion.matches) { ctx.drawImage(crowd, 0, 0); return; }
+    ctx.save();
+    ctx.clip(this.stillStands, 'evenodd');
+    ctx.drawImage(crowd, 0, 0);
+    ctx.restore();
+    // Keep the top and bottom of each crowd section fixed against its neighbours.
+    for (const [x, y, w, h, amplitude, period] of FINISH_CHEERS) {
+      const mid = Math.floor(h * .55);
+      const lift = Math.round(amplitude * (.5 - .5 * Math.cos(2 * Math.PI * seconds / period + x)));
+      ctx.drawImage(crowd, x, y, w, mid, x, y, w, mid - lift);
+      ctx.drawImage(crowd, x, y + mid, w, h - mid, x, y + mid - lift, w, h - mid + lift);
+    }
+    // Only the free ends of the four painted pennants flap.
+    for (const [i, x] of FINISH_FLAGS.entries()) {
+      for (let dx = 0; dx < 32; dx += 4) {
+        const wave = Math.round(3 * dx / 32 * Math.sin(seconds * (6 + i * .6) - dx / 7 + i));
+        ctx.drawImage(crowd, x + dx, 33, 4, 36, x + dx, 33 + wave, 4, 36);
+      }
+    }
+  },
+
+  // Raised camera at the timing line. The same crowd surrounds the final world's apron.
   finishArea(driver) {
-    const ctx = this.ctx, art = A.finish.arena;
+    const ctx = this.ctx, world = A.bg[Track.segments[Track.finishSeg].zone];
     const scale = Math.min(this.width / W, 1);
     ctx.save();
     ctx.fillStyle = '#120b1d'; ctx.fillRect(0, 0, this.width, H);
     ctx.translate((this.width - W * scale) / 2, (H - H * scale) / 2);
     ctx.scale(scale, scale);
-    ctx.drawImage(art, 0, 0, W, H);
+    ctx.drawImage(world.panorama, 0, 0, W, 166);
+    ctx.drawImage(world.finishFloor, 0, 156, W, H - 156);
+    ctx.drawImage(A.finish.stripe, 0, H - 36, W, 9);
     const field = driver.localCar ? Local.entries : [...driver.cars, driver.finishCar];
     const finishers = field.filter(car => car.finished).sort((a, b) => b.z - a.z);
     for (const car of finishers) {
@@ -502,9 +540,10 @@ const R = {
       const perspective = 1 / (1 + depth / 78), pixels = .19 * perspective;
       const x = W / 2 + car.offset * Track.find(car.z).halfWidth * .127 * perspective;
       const y = 160 + 365 * perspective;
-      this.vehicle(car.vehicle, car.pose || 0, pixels / (W / 2), x, y, 0, 1);
+      this.vehicle(car.vehicle, car.pose || 0, pixels / (W / 2), x, y, 0, 1, false);
       if (car.driver) this.text(seatName(car.seat), x, y + 12, 12, SEAT_COLORS[car.seat], { align: 'center', lw: 2 });
     }
+    this.finishCrowd(driver.localCar ? Local.elapsed : driver.elapsed);
     ctx.restore();
   },
 

@@ -127,7 +127,7 @@ const SPRITES = {
 };
 
 const FINISH_ART = {
-  arena: 'track/finish/arena.png', paving: 'track/finish/paving.png', stripe: 'track/finish/stripe.png',
+  crowd: 'track/finish/crowd.png', stripe: 'track/finish/stripe.png',
 };
 
 // Each road is one overhead painting, repeated along the direction of travel.
@@ -154,6 +154,7 @@ const BACKGROUNDS = ZONES.map(({ id: z }) => ({
   panorama: `background/${z}/${z}_panorama.png`,
   ground: `track/ground_${z}.png`,
   road: ROAD_FILES[z],
+  finishFloor: `track/finish/floor_${z}.png`,
   ...WORLD_SURFACES[z],
 }));
 

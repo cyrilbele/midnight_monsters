@@ -117,7 +117,7 @@ Make it instantly recognizable as a giant five-digit palm.
 
 ## Aire d’arrivée
 
-ImageGen intégré a dessiné l’arène en 4:3 et les trois rangées de supporters sur fond transparent. Le sol et le damier proviennent de l’illustration de l’arène. Les bolides affichés par la caméra d’arrivée utilisent les planches des pilotes de la course. [PNG de l’arrivée](../../sprites/track/finish)
+La caméra superpose le panorama de la dernière zone, son sol `floor_<zone>.png`, le damier, les bolides et la tribune transparente `crowd.png`. La tribune mesure 640 × 480 et entoure les huit sols. Les rectangles de `FINISH_CHEERS` et `FINISH_FLAGS` dans `js/render.js` suivent les rangées et les fanions du dessin. Les huit sols en perspective proviennent d’une planche illustrée de deux colonnes sur quatre lignes, dans l’ordre motel, marais, carnaval, cimetière, désert, station de ski, ville et fonderie. Les véhicules utilisent leurs vues du garage. [Dessins de l’arrivée](../../sprites/track/finish)
 
 ### Arène
 

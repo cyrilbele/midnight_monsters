@@ -168,7 +168,7 @@ const Local = {
 
   update(dt) {
     if (this.done) return;
-    this.advanceRace(dt, seat => RaceInput.controls(seat, true));
+    this.advanceRace(dt, seat => RaceInput.controls(seat, true, this.countdown));
     if (this.done) {
       this.observer.disconnect(); this.root.replaceChildren(); this.views = []; this.addBoard(true);
     }
@@ -178,11 +178,14 @@ const Local = {
     if (this.done) return;
     if (this.countdown > 0) {
       const before = Math.ceil(this.countdown);
-      this.countdown = Math.max(0, this.countdown - dt);
-      if (Math.ceil(this.countdown) !== before) Sound.beep(this.countdown === 0);
-      if (!this.countdown) {
-        for (const driver of this.drivers) if (driver.state === 'countdown') driver.state = 'race';
+      const remaining = Math.max(0, this.countdown - dt);
+      for (const driver of this.drivers) {
+        if (driver.state !== 'countdown') continue;
+        driver.keys = controls(driver.localCar.seat);
+        if (remaining === 0) driver.launch();
       }
+      this.countdown = remaining;
+      if (Math.ceil(this.countdown) !== before) Sound.beep(this.countdown === 0);
       return;
     }
     const racing = this.drivers.filter(driver => driver.state === 'race');
@@ -344,6 +347,7 @@ const Local = {
       else if (this.countdown > 0) notice = Track.itinerary();
       else if (driver.offroadNoticeUntil > driver.elapsed) notice = driver.offroadMessage;
       else if (driver.checkpointNoticeUntil > driver.elapsed) notice = driver.checkpointMessage;
+      else if (driver.rocketStart && this.elapsed < START_BOOST_DURATION) notice = tr('race.rocketStart');
       else if (driver.passFlash > 0) notice = tr('hud.close');
       setText(hud.notice, notice);
       setText(hud.call, this.countdown > 0 ? String(Math.min(3, Math.ceil(this.countdown))) :

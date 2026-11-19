@@ -18,6 +18,7 @@ const PLAYER_NOSE = 1.55 * SEG; // ahead of the chase-camera tyre anchor
 const NEAR_MISS_GAP = 215;  // space between the two hitboxes, in world units
 const TURBO_CAPACITY = 2;
 const TURBO_DURATION = 2.2;
+const START_BOOST_DURATION = 1;
 const TRIAL_APPROACH = 195; // advance notice in road segments
 
 const params = new URLSearchParams(location.search);
@@ -76,6 +77,7 @@ const G = {
     this.offCourse = false; this.offroadNoticeUntil = 0; this.checkpointNoticeUntil = 0;
     this.offroadMessage = ''; this.checkpointMessage = '';
     this.charge = TURBO_CAPACITY; this.turboLeft = 0; this.turboStart = 0;
+    this.rocketStart = false;
     this.collectedPotions = new Set(); this.potionNoticeUntil = 0;
     this.passedTraffic = new Set();
     this.nearMisses = 0; this.passFlash = 0;
@@ -147,12 +149,25 @@ const G = {
     if (!this.localCar) this.audio?.engine(car.speed / MAX_SPEED, !car.parked, false);
   },
 
+  boostFor(seconds) {
+    if (this.turboLeft === 0) this.turboStart = this.elapsed;
+    this.turboLeft += seconds;
+    this.audio?.turbo();
+  },
+
+  launch() {
+    this.state = 'race';
+    this.rocketStart = Boolean(this.keys.startBoost && this.keys.up && !this.keys.down);
+    if (this.rocketStart) {
+      this.speed = this.topSpeed * .30;
+      this.boostFor(START_BOOST_DURATION);
+    }
+  },
+
   useTurbo() {
     if (this.state !== 'race' || this.charge < 1 || Math.abs(this.playerX) > 1 || (!this.auto && this.keys.down)) return;
-    if (this.turboLeft === 0) this.turboStart = this.elapsed;
     this.charge--;
-    this.turboLeft += TURBO_DURATION;
-    this.audio?.turbo();
+    this.boostFor(TURBO_DURATION);
   },
 
   collectPotions(startZ, endZ, startX, claims) {
@@ -246,12 +261,12 @@ const G = {
 
     if (this.state === 'countdown') {
       const before = Math.ceil(this.countdown);
-      this.countdown -= dt;
+      this.countdown = Math.max(0, this.countdown - dt);
       const after = Math.ceil(this.countdown);
       if (after !== before && after > 0) this.audio?.beep(false);
       if (this.countdown <= 0) {
-        this.state = 'race'; this.audio?.beep(true);
-        this.msg = { text: tr('race.go'), sub: tr('race.beatDawn'), t: 0, life: 1.4 };
+        this.launch(); this.audio?.beep(true);
+        this.msg = { text: tr('race.go'), sub: tr(this.rocketStart ? 'race.rocketStart' : 'race.beatDawn'), t: 0, life: 1.4 };
       }
       this.audio?.engine(0.05 + (this.keys.up ? 0.25 : 0), true, false);
       return;
@@ -617,6 +632,8 @@ const G = {
 
   start() {
     Sound.startMusic();
+    RaceInput.startDigits.length = 0;
+    RaceInput.touch = {};
     Track.startRace();
     this.reset();
     this.state = 'countdown';
@@ -663,6 +680,8 @@ addEventListener('keydown', e => {
     return;
   }
   if (G.state === 'select') {
+    // A pedal already held in the garage is an early press, even without key repeat.
+    if (SOLO_KEYS[e.code] === 'up') RaceInput.held.add(e.code);
     if (e.code === 'PageUp' || e.code === 'PageDown') {
       e.preventDefault();
       Select.turnPage(e.code === 'PageUp' ? -1 : 1);
@@ -719,7 +738,7 @@ addEventListener('pointerdown', e => {
 });
 // The second thumb can fire the turbo while the first keeps steering.
 function touchDrive(e) {
-  if (G.state !== 'race' && G.state !== 'online') return;
+  if (G.state !== 'countdown' && G.state !== 'race' && G.state !== 'online') return;
   let left = false, right = false;
   for (const touch of e.touches) {
     if (touch.target !== canvas) continue;
@@ -755,6 +774,10 @@ function drawScreens() {
 
 // A short, playable approach to the actual line for checking the finish camera.
 function previewFinish() {
+  const last = params.get('finish');
+  if (WORLD_IDS.includes(last)) {
+    Track.build([...Track.route.filter(id => id !== last).slice(0, STAGE_COUNT - 1), last]);
+  }
   G.reset(false, mulberry32(93));
   G.auto = true; G.state = 'race'; G.stage = STAGE_COUNT - 1;
   G.trialIndex = Track.trials.length; G.elapsed = 116; G.time = 26; G.dawn = 49;
@@ -980,7 +1003,7 @@ fit();
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     RaceInput.poll();
-    if (G.state === 'race' || G.state === 'countdown') G.keys = RaceInput.controls(0, false);
+    if (G.state === 'race' || G.state === 'countdown') G.keys = RaceInput.controls(0, false, G.countdown);
     acc += dt;
     while (acc >= STEP) {
       if (G.state === 'online') Online.update();
