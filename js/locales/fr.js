@@ -16,6 +16,7 @@ I18n.catalogs["fr"] = {
     "online.you": "toi",
     "online.missing": "Salon introuvable. Demande un nouveau lien à l’hôte.",
     "online.network": "Connexion impossible. Vérifie ta connexion et réessaie.",
+    "online.directFailed": "Les deux appareils n’arrivent pas à se connecter. Essaie un autre réseau, par exemple les données mobiles.",
     "online.unsupported": "Ce navigateur ne permet pas de rejoindre une course en ligne.",
     "online.full": "Cette course a déjà commencé.",
     "online.hostLeft": "La connexion avec l’hôte a été perdue.",

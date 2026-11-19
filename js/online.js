@@ -40,7 +40,7 @@ class RaceRoom {
   }
 
   async connect() {
-    this.deadline = setTimeout(() => this.fail('network'), 30000);
+    this.deadline = setTimeout(() => this.fail(this.hostLink ? 'directFailed' : 'network'), 30000);
     try {
       await import('../vendor/peerjs-1.5.5/peerjs.min.js');
       if (this.closed) return;
@@ -51,6 +51,7 @@ class RaceRoom {
         if (err.type === 'peer-unavailable' && !this.isHost) return this.fail('missing');
         if (this.phase === 'race' && !peer.destroyed && !['browser-incompatible','invalid-key'].includes(err.type)) return;
         if (this.isHost && err.type === 'webrtc') return; // A single ICE failure belongs to its data channel.
+        if (!this.isHost && err.type === 'webrtc') return this.fail('directFailed');
         this.fail(err.type === 'browser-incompatible' ? 'unsupported' : 'network');
       });
       peer.on('disconnected', () => {
@@ -91,7 +92,7 @@ class RaceRoom {
       if (!this.links.delete(c) || this.closed || this.phase === 'finished') return;
       if (!this.isHost) {
         if (this.results) this.finish(this.results);
-        else this.fail(this.phase === 'connecting' ? 'network' : 'hostLeft');
+        else this.fail(this.phase === 'connecting' ? 'directFailed' : 'hostLeft');
         return;
       }
       const seat = this.seats.get(c);

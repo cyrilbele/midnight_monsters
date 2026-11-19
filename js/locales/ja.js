@@ -16,6 +16,7 @@ I18n.catalogs["ja"] = {
     "online.you": "あなた",
     "online.missing": "ルームが見つかりません。ホストに新しいリンクをもらってください。",
     "online.network": "接続できませんでした。ネットワークを確認してもう一度お試しください。",
+    "online.directFailed": "端末同士を接続できませんでした。モバイル回線など別のネットワークでお試しください。",
     "online.unsupported": "このブラウザーはオンライン対戦に対応していません。",
     "online.full": "このレースはすでに始まっています。",
     "online.hostLeft": "ホストとの接続が切れました。",

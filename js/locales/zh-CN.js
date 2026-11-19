@@ -16,6 +16,7 @@ I18n.catalogs["zh-CN"] = {
     "online.you": "你",
     "online.missing": "找不到房间。请向房主索取新的邀请链接。",
     "online.network": "连接失败。请检查网络后重试。",
+    "online.directFailed": "两台设备无法建立连接。请尝试其他网络，例如移动数据。",
     "online.unsupported": "此浏览器不支持在线竞速。",
     "online.full": "这场比赛已经开始了。",
     "online.hostLeft": "与房主的连接已断开。",

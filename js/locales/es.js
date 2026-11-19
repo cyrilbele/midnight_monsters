@@ -16,6 +16,7 @@ I18n.catalogs["es"] = {
     "online.you": "tú",
     "online.missing": "Sala no disponible. Pide otro enlace a quien la creó.",
     "online.network": "No se pudo conectar. Comprueba tu conexión y vuelve a intentarlo.",
+    "online.directFailed": "Los dos dispositivos no han podido conectarse. Prueba con otra red, como la de datos móviles.",
     "online.unsupported": "Este navegador no admite carreras en línea.",
     "online.full": "Esta carrera ya ha empezado.",
     "online.hostLeft": "Se perdió la conexión con el anfitrión.",

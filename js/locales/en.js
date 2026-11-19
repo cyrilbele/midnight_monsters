@@ -16,6 +16,7 @@ I18n.catalogs["en"] = {
     "online.you": "you",
     "online.missing": "Room unavailable. Ask the host for a new link.",
     "online.network": "Connection failed. Check your network and try again.",
+    "online.directFailed": "The two devices could not connect. Try another network, such as mobile data.",
     "online.unsupported": "This browser cannot connect to online races.",
     "online.full": "This race has already started.",
     "online.hostLeft": "The connection to the host was lost.",
