@@ -70,37 +70,19 @@ const Home = {
     for (const canvas of this.nav.querySelectorAll('canvas')) {
       const button = canvas.parentElement, art = A.ui[canvas.dataset.menuArt];
       const ctx = canvas.getContext('2d');
-      const play = button === this.playButton;
       const label = button.getAttribute('aria-label').toLocaleUpperCase(I18n.language);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       if (!art) {
-        ctx.font = R.font(17); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#fff1c2';
-        ctx.fillText(label, canvas.width / 2, canvas.height / 2, canvas.width - 14);
+        const hud = Object.create(R);
+        hud.ctx = ctx;
+        const size = 21, baseline = 23;
+        hud.text(label, canvas.width / 2, baseline, size, hud.yellow(baseline, size), { align: 'center', maxWidth: canvas.width - 18, lw: 2 });
         continue;
       }
-      if (play && I18n.language !== 'fr') {
-        // The original French button includes an illustrated Return key at its right edge.
-        ctx.save();
-        ctx.font = R.font(30); ctx.lineJoin = 'round'; ctx.lineWidth = 3.5;
-        const keyW = 44, gap = 7, textW = Math.min(canvas.width - keyW - gap - 6, Math.ceil(ctx.measureText(label).width));
-        const left = Math.round((canvas.width - textW - gap - keyW) / 2);
-        const gold = ctx.createLinearGradient(0, 3, 0, 27);
-        gold.addColorStop(0, '#fff586'); gold.addColorStop(0.45, '#ffd72d'); gold.addColorStop(1, '#ff9200');
-        ctx.strokeStyle = '#100516'; ctx.fillStyle = '#100516';
-        ctx.strokeText(label, left, 29, textW); ctx.fillText(label, left, 29, textW);
-        ctx.strokeText(label, left, 26, textW); ctx.fillStyle = gold; ctx.fillText(label, left, 26, textW);
-        const keyX = 308; // source pixels in title_play.png
-        ctx.drawImage(art, keyX, 0, art.width - keyX, art.height, left + textW + gap, 0, keyW, canvas.height);
-        ctx.restore();
-        continue;
-      }
-      const scale = Math.min((play ? canvas.width : 25) / art.width, canvas.height / art.height);
+      const scale = Math.min(25 / art.width, canvas.height / art.height);
       const w = Math.round(art.width * scale), h = Math.round(art.height * scale);
-      const left = play ? Math.round((canvas.width - w) / 2) : 0;
-      ctx.drawImage(R.sourceAtSize(art, w), left, Math.round((canvas.height - h) / 2), w, h);
-      if (play) continue;
+      ctx.drawImage(R.sourceAtSize(art, w), 0, Math.round((canvas.height - h) / 2), w, h);
       ctx.font = 'bold 11px ' + I18n.fonts; ctx.letterSpacing = '1.2px';
       const x = w + 7, y = Math.round(canvas.height / 2) + 4;
       ctx.fillStyle = '#150d21'; ctx.fillText(label, x, y + 1, canvas.width - x - 1);

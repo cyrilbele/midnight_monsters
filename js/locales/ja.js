@@ -57,7 +57,7 @@ I18n.catalogs["ja"] = {
     "multi.again": "もう一度レース",
     "multi.padLost": "接続が切れました · キーボード操作可",
     "menu.main": "メインメニュー",
-    "menu.play": "スタート",
+    "menu.play": "ソロプレイ",
     "menu.controls": "操作方法",
     "menu.options": "設定",
     "menu.back": "戻る",

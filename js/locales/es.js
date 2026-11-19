@@ -57,7 +57,7 @@ I18n.catalogs["es"] = {
     "multi.again": "Volver a correr",
     "multi.padLost": "Mando desconectado · teclado activo",
     "menu.main": "Menú principal",
-    "menu.play": "Jugar",
+    "menu.play": "Jugar solo",
     "menu.controls": "Controles",
     "menu.options": "Opciones",
     "menu.back": "Volver",

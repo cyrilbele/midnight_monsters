@@ -57,7 +57,7 @@ I18n.catalogs["zh-CN"] = {
     "multi.again": "再来一场",
     "multi.padLost": "手柄已断开 · 可用键盘",
     "menu.main": "主菜单",
-    "menu.play": "开始",
+    "menu.play": "单人游戏",
     "menu.controls": "操作说明",
     "menu.options": "设置",
     "menu.back": "返回",

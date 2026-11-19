@@ -153,7 +153,6 @@ const BACKGROUNDS = ZONES.map(({ id: z }) => ({
 // --------------------------------------------------------- select screen ---
 const UI_SPRITES = {
   titleScene: 'ui/title_scene.png',
-  titlePlay: 'ui/title_play.png',
   titleKeyboard: 'ui/title_keyboard.png',
   titleGear: 'ui/title_gear.png',
   turbo: 'ui/turbo.png',

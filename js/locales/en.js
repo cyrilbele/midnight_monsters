@@ -57,7 +57,7 @@ I18n.catalogs["en"] = {
     "multi.again": "Race again",
     "multi.padLost": "Controller disconnected · keyboard active",
     "menu.main": "Main menu",
-    "menu.play": "Play",
+    "menu.play": "Play solo",
     "menu.controls": "Controls",
     "menu.options": "Options",
     "menu.back": "Back",

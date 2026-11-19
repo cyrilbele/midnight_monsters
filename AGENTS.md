@@ -18,7 +18,7 @@ Au démarrage, le jeu reprend la langue choisie dans les options. Sans choix enr
 
 Dans le garage, gauche et droite choisissent le bolide, haut et bas le font pivoter et Entrée lance la course. Les seize pilotes occupent deux pages de huit. Les flèches autour du numéro de page et les touches Page précédente et Page suivante changent de page. En piste, diriger avec gauche et droite, accélérer avec haut ou Espace et freiner avec bas. `M` commande le son et `P` bascule entre le rendu 640 × 480 et le filtre 320 × 240. Échap ramène à l’accueil depuis le garage, le décompte, la course ou les résultats.
 
-L’accueil dessine son illustration à la résolution du jeu dans `Home.drawScene()` et partage le filtre `R.pixelate()` avec la course. En portrait, le cadrage conserve 640 pixels de large et recadre les côtés. Les boutons restent des contrôles HTML accessibles. Leur dessin dans `Home.drawActions()` utilise la résolution des compteurs pour garder les libellés lisibles. La rangée `.title-modes` place Jouer et Multijoueur sur la chaussée au-dessus du corbillard.
+L’accueil dessine son illustration à la résolution du jeu dans `Home.drawScene()` et partage le filtre `R.pixelate()` avec la course. En portrait, le cadrage conserve 640 pixels de large et recadre les côtés. Les boutons restent des contrôles HTML accessibles. La rangée `.title-modes` place **Jouer solo** et **Multijoueur** sur la chaussée au-dessus du corbillard. Les deux boutons partagent leur cadre dans `menu.css` et leur lettrage doré dans `Home.drawActions()`, qui dessine le libellé traduit de chaque bouton à la résolution des compteurs.
 
 ### Les huit univers
 
